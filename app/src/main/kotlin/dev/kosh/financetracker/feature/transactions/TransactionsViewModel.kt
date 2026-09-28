@@ -9,9 +9,12 @@ import dev.kosh.financetracker.core.model.TransactionCategory
 import dev.kosh.financetracker.core.model.TransactionDirection
 import dev.kosh.financetracker.core.model.TransactionSource
 import dev.kosh.financetracker.core.model.TransactionType
+import dev.kosh.financetracker.core.finance.FinanceCalculator
+import dev.kosh.financetracker.core.finance.MonthSummary
 import dev.kosh.financetracker.data.repository.TransactionRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -26,6 +29,10 @@ class TransactionsViewModel @Inject constructor(
     val transactions: StateFlow<List<Transaction>> = repository.observeTransactions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val monthSummary: StateFlow<MonthSummary> = repository.observeTransactions()
+        .map { FinanceCalculator.currentMonthSummary(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MonthSummary(BigDecimal.ZERO, BigDecimal.ZERO))
+
     fun addSampleTransaction() {
         viewModelScope.launch {
             val now = Instant.now()
@@ -39,6 +46,7 @@ class TransactionsViewModel @Inject constructor(
                     merchant = "Swiggy",
                     rawMerchant = "UPI-SWIGGY-BANGALORE",
                     accountId = null,
+                    accountSuffix = null,
                     paymentMethod = PaymentMethod.UPI,
                     source = TransactionSource.MANUAL,
                     sourceMessageId = null,

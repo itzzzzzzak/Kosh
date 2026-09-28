@@ -26,6 +26,7 @@ class TransactionMappingTest {
             merchant = "Swiggy",
             rawMerchant = "UPI-SWIGGY-BANGALORE",
             accountId = 1L,
+            accountSuffix = "1234",
             paymentMethod = PaymentMethod.UPI,
             source = TransactionSource.SMS,
             sourceMessageId = "msg-123",

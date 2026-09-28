@@ -1,0 +1,84 @@
+package dev.kosh.financetracker.core.finance
+
+import dev.kosh.financetracker.core.model.PaymentMethod
+import dev.kosh.financetracker.core.model.Transaction
+import dev.kosh.financetracker.core.model.TransactionCategory
+import dev.kosh.financetracker.core.model.TransactionDirection
+import dev.kosh.financetracker.core.model.TransactionSource
+import dev.kosh.financetracker.core.model.TransactionType
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+
+class FinanceCalculatorTest {
+
+    private val zone = ZoneOffset.UTC
+    private val now = ZonedDateTime.of(2026, 9, 28, 12, 0, 0, 0, zone).toInstant()
+
+    private fun transaction(
+        type: TransactionType,
+        amount: String,
+        timestamp: Instant,
+    ) = Transaction(
+        timestamp = timestamp,
+        amount = BigDecimal(amount),
+        direction = if (type == TransactionType.INCOME) TransactionDirection.CREDIT else TransactionDirection.DEBIT,
+        type = type,
+        category = TransactionCategory.UNCATEGORIZED,
+        merchant = null,
+        rawMerchant = null,
+        accountId = null,
+        accountSuffix = null,
+        paymentMethod = PaymentMethod.UPI,
+        source = TransactionSource.SMS,
+        sourceMessageId = null,
+        confidence = 1.0,
+        notes = null,
+        createdAt = timestamp,
+    )
+
+    @Test
+    fun `sums expenses and income within the current month only`() {
+        val withinMonth = ZonedDateTime.of(2026, 9, 15, 10, 0, 0, 0, zone).toInstant()
+        val previousMonth = ZonedDateTime.of(2026, 8, 15, 10, 0, 0, 0, zone).toInstant()
+
+        val transactions = listOf(
+            transaction(TransactionType.EXPENSE, "450.00", withinMonth),
+            transaction(TransactionType.EXPENSE, "2000.00", withinMonth),
+            transaction(TransactionType.INCOME, "49800.00", withinMonth),
+            transaction(TransactionType.EXPENSE, "999.00", previousMonth),
+        )
+
+        val summary = FinanceCalculator.currentMonthSummary(transactions, zone = zone, now = now)
+
+        assertEquals(BigDecimal("2450.00"), summary.expense)
+        assertEquals(BigDecimal("49800.00"), summary.income)
+        assertEquals(BigDecimal("47350.00"), summary.netCashFlow)
+    }
+
+    @Test
+    fun `ignores transfer and unknown types`() {
+        val withinMonth = ZonedDateTime.of(2026, 9, 15, 10, 0, 0, 0, zone).toInstant()
+        val transactions = listOf(
+            transaction(TransactionType.TRANSFER, "10000.00", withinMonth),
+            transaction(TransactionType.UNKNOWN, "500.00", withinMonth),
+        )
+
+        val summary = FinanceCalculator.currentMonthSummary(transactions, zone = zone, now = now)
+
+        assertEquals(BigDecimal.ZERO, summary.income)
+        assertEquals(BigDecimal.ZERO, summary.expense)
+    }
+
+    @Test
+    fun `returns zero summary when no transactions this month`() {
+        val summary = FinanceCalculator.currentMonthSummary(emptyList(), zone = zone, now = now)
+
+        assertEquals(BigDecimal.ZERO, summary.income)
+        assertEquals(BigDecimal.ZERO, summary.expense)
+        assertEquals(BigDecimal.ZERO, summary.netCashFlow)
+    }
+}

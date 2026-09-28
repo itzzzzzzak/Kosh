@@ -1,6 +1,7 @@
 package dev.kosh.financetracker.data.database
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import dev.kosh.financetracker.core.model.PaymentMethod
 import dev.kosh.financetracker.core.model.Transaction
@@ -11,7 +12,12 @@ import dev.kosh.financetracker.core.model.TransactionType
 import java.math.BigDecimal
 import java.time.Instant
 
-@Entity(tableName = "transactions")
+@Entity(
+    tableName = "transactions",
+    // Unique per source SMS so rescanning the inbox never double-imports the same
+    // message; manual entries (sourceMessageId = null) never collide with each other.
+    indices = [Index(value = ["sourceMessageId"], unique = true)],
+)
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val timestampEpochMillis: Long,
@@ -22,6 +28,7 @@ data class TransactionEntity(
     val merchant: String?,
     val rawMerchant: String?,
     val accountId: Long?,
+    val accountSuffix: String?,
     val paymentMethod: PaymentMethod?,
     val source: TransactionSource,
     val sourceMessageId: String?,
@@ -40,6 +47,7 @@ fun TransactionEntity.toDomain(): Transaction = Transaction(
     merchant = merchant,
     rawMerchant = rawMerchant,
     accountId = accountId,
+    accountSuffix = accountSuffix,
     paymentMethod = paymentMethod,
     source = source,
     sourceMessageId = sourceMessageId,
@@ -58,6 +66,7 @@ fun Transaction.toEntity(): TransactionEntity = TransactionEntity(
     merchant = merchant,
     rawMerchant = rawMerchant,
     accountId = accountId,
+    accountSuffix = accountSuffix,
     paymentMethod = paymentMethod,
     source = source,
     sourceMessageId = sourceMessageId,

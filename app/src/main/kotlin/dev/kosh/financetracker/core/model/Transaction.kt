@@ -76,6 +76,9 @@ data class Transaction(
     val merchant: String?,
     val rawMerchant: String?,
     val accountId: Long?,
+    /** Raw account suffix (e.g. "5590") extracted by the parser. Used for transfer
+     * detection before a full Account entity exists (Phase 19). */
+    val accountSuffix: String?,
     val paymentMethod: PaymentMethod?,
     val source: TransactionSource,
     val sourceMessageId: String?,
