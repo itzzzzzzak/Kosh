@@ -1,0 +1,67 @@
+package dev.kosh.financetracker.data.database
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import dev.kosh.financetracker.core.model.PaymentMethod
+import dev.kosh.financetracker.core.model.Transaction
+import dev.kosh.financetracker.core.model.TransactionCategory
+import dev.kosh.financetracker.core.model.TransactionDirection
+import dev.kosh.financetracker.core.model.TransactionSource
+import dev.kosh.financetracker.core.model.TransactionType
+import java.math.BigDecimal
+import java.time.Instant
+
+@Entity(tableName = "transactions")
+data class TransactionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val timestampEpochMillis: Long,
+    val amount: BigDecimal,
+    val direction: TransactionDirection,
+    val type: TransactionType,
+    val category: TransactionCategory?,
+    val merchant: String?,
+    val rawMerchant: String?,
+    val accountId: Long?,
+    val paymentMethod: PaymentMethod?,
+    val source: TransactionSource,
+    val sourceMessageId: String?,
+    val confidence: Double,
+    val notes: String?,
+    val createdAtEpochMillis: Long,
+)
+
+fun TransactionEntity.toDomain(): Transaction = Transaction(
+    id = id,
+    timestamp = Instant.ofEpochMilli(timestampEpochMillis),
+    amount = amount,
+    direction = direction,
+    type = type,
+    category = category,
+    merchant = merchant,
+    rawMerchant = rawMerchant,
+    accountId = accountId,
+    paymentMethod = paymentMethod,
+    source = source,
+    sourceMessageId = sourceMessageId,
+    confidence = confidence,
+    notes = notes,
+    createdAt = Instant.ofEpochMilli(createdAtEpochMillis),
+)
+
+fun Transaction.toEntity(): TransactionEntity = TransactionEntity(
+    id = id,
+    timestampEpochMillis = timestamp.toEpochMilli(),
+    amount = amount,
+    direction = direction,
+    type = type,
+    category = category,
+    merchant = merchant,
+    rawMerchant = rawMerchant,
+    accountId = accountId,
+    paymentMethod = paymentMethod,
+    source = source,
+    sourceMessageId = sourceMessageId,
+    confidence = confidence,
+    notes = notes,
+    createdAtEpochMillis = createdAt.toEpochMilli(),
+)
