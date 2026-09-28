@@ -2,28 +2,37 @@ package dev.kosh.financetracker.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-/** Semantic color tokens. Compose against these names, never a raw hex, outside this file. */
+/** Kosh brand palette — see Kosh_Brand_Kit/theme/colors.json for the source of truth. */
 object KoshColors {
-    val Background = Color(0xFF0B0B0F)
-    val Surface = Color(0xFF16161D)
-    val SurfaceVariant = Color(0xFF1E1E27)
-    val Border = Color(0xFF2A2A35)
+    val Charcoal = Color(0xFF171C20)
+    val Gold = Color(0xFFD5A64F)
+    val Cream = Color(0xFFF7F5F0)
 
-    val Foreground = Color(0xFFF5F5F7)
-    val MutedForeground = Color(0xFF9CA3AF)
+    val LightBackground = Color(0xFFF7F5F0)
+    val LightSurface = Color(0xFFFFFFFF)
+    val LightText = Color(0xFF1D2528)
+    val LightMuted = Color(0xFF5E686B)
+    val LightBorder = Color(0xFFDCE1DF)
+    val LightAccentText = Color(0xFF966A1C)
+    val LightIncome = Color(0xFF276B5A)
+    val LightExpense = Color(0xFFA14343)
 
-    val GradientStart = Color(0xFF7C3AED)
-    val GradientEnd = Color(0xFFDB2777)
-    val Primary = Color(0xFF8B5CF6)
+    val DarkBackground = Color(0xFF111619)
+    val DarkSurface = Color(0xFF1D2528)
+    val DarkText = Color(0xFFF6F5F1)
+    val DarkMuted = Color(0xFFAEB8B7)
+    val DarkBorder = Color(0xFF394247)
+    val DarkIncome = Color(0xFF7FD1AF)
+    val DarkExpense = Color(0xFFF0A29A)
 
-    val Success = Color(0xFF34D399)
-    val Destructive = Color(0xFFF87171)
-    val Warning = Color(0xFFFBBF24)
-    val Info = Color(0xFF60A5FA)
-
-    val AvatarPalette = listOf(
-        Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFF3B82F6),
-        Color(0xFF14B8A6), Color(0xFFF59E0B), Color(0xFFEF4444),
-        Color(0xFF10B981), Color(0xFF6366F1),
+    /** Qualitative palette for the category breakdown bar/legend only — data series
+     * need to be visually distinguishable, unlike the rest of the UI which reserves
+     * color for semantic meaning (gold = emphasis, green/red = income/expense). */
+    val ChartPalette = listOf(
+        Gold,
+        Color(0xFF5B8A87),
+        Color(0xFFC97B84),
+        Color(0xFF6E8FB0),
+        Color(0xFF9A8C6B),
     )
 }

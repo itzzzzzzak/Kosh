@@ -36,6 +36,7 @@ class TransferDetectorTest {
         paymentMethod = PaymentMethod.UPI,
         source = TransactionSource.SMS,
         sourceMessageId = null,
+        rawSourceText = null,
         confidence = 1.0,
         notes = null,
         createdAt = timestamp,

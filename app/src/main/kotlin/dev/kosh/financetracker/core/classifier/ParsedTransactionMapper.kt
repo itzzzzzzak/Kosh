@@ -1,8 +1,8 @@
 package dev.kosh.financetracker.core.classifier
 
+import dev.kosh.financetracker.core.categorization.CategoryEngine
 import dev.kosh.financetracker.core.model.ParsedTransaction
 import dev.kosh.financetracker.core.model.Transaction
-import dev.kosh.financetracker.core.model.TransactionCategory
 import dev.kosh.financetracker.core.model.TransactionDirection
 import dev.kosh.financetracker.core.model.TransactionSource
 import dev.kosh.financetracker.core.model.TransactionType
@@ -13,9 +13,9 @@ import java.time.Instant
  * type classifier from the plan (transfers, EMI, credit-card payments, investments
  * are all still misclassified as plain EXPENSE/INCOME here) — it exists only so
  * confirmed SMS transactions have somewhere to live before that classifier exists.
- * Category is always UNCATEGORIZED until the category engine is built.
+ * Category comes from the keyword-rule CategoryEngine tier.
  */
-fun ParsedTransaction.toTransaction(sourceMessageId: String): Transaction {
+fun ParsedTransaction.toTransaction(sourceMessageId: String, rawSourceText: String): Transaction {
     val type = when (direction) {
         TransactionDirection.DEBIT -> TransactionType.EXPENSE
         TransactionDirection.CREDIT -> TransactionType.INCOME
@@ -28,7 +28,7 @@ fun ParsedTransaction.toTransaction(sourceMessageId: String): Transaction {
         amount = amount,
         direction = direction,
         type = type,
-        category = TransactionCategory.UNCATEGORIZED,
+        category = CategoryEngine.categorize(merchantRaw),
         merchant = merchantRaw,
         rawMerchant = merchantRaw,
         accountId = null,
@@ -36,6 +36,7 @@ fun ParsedTransaction.toTransaction(sourceMessageId: String): Transaction {
         paymentMethod = paymentMethod,
         source = TransactionSource.SMS,
         sourceMessageId = sourceMessageId,
+        rawSourceText = rawSourceText,
         confidence = confidence,
         notes = null,
         createdAt = now,

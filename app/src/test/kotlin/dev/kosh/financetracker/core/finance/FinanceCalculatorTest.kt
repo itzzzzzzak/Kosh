@@ -22,12 +22,13 @@ class FinanceCalculatorTest {
         type: TransactionType,
         amount: String,
         timestamp: Instant,
+        category: TransactionCategory = TransactionCategory.UNCATEGORIZED,
     ) = Transaction(
         timestamp = timestamp,
         amount = BigDecimal(amount),
         direction = if (type == TransactionType.INCOME) TransactionDirection.CREDIT else TransactionDirection.DEBIT,
         type = type,
-        category = TransactionCategory.UNCATEGORIZED,
+        category = category,
         merchant = null,
         rawMerchant = null,
         accountId = null,
@@ -35,6 +36,7 @@ class FinanceCalculatorTest {
         paymentMethod = PaymentMethod.UPI,
         source = TransactionSource.SMS,
         sourceMessageId = null,
+        rawSourceText = null,
         confidence = 1.0,
         notes = null,
         createdAt = timestamp,
@@ -80,5 +82,37 @@ class FinanceCalculatorTest {
         assertEquals(BigDecimal.ZERO, summary.income)
         assertEquals(BigDecimal.ZERO, summary.expense)
         assertEquals(BigDecimal.ZERO, summary.netCashFlow)
+    }
+
+    @Test
+    fun `builds a category breakdown sorted largest first with correct fractions`() {
+        val withinMonth = ZonedDateTime.of(2026, 9, 15, 10, 0, 0, 0, zone).toInstant()
+        val transactions = listOf(
+            transaction(TransactionType.EXPENSE, "60.00", withinMonth, TransactionCategory.FOOD),
+            transaction(TransactionType.EXPENSE, "20.00", withinMonth, TransactionCategory.TRAVEL),
+            transaction(TransactionType.EXPENSE, "20.00", withinMonth, TransactionCategory.SHOPPING),
+            transaction(TransactionType.INCOME, "1000.00", withinMonth, TransactionCategory.UNCATEGORIZED),
+        )
+
+        val breakdown = FinanceCalculator.currentMonthCategoryBreakdown(transactions, zone = zone, now = now)
+
+        assertEquals(3, breakdown.size)
+        assertEquals(TransactionCategory.FOOD, breakdown[0].category)
+        assertEquals(BigDecimal("60.00"), breakdown[0].amount)
+        assertEquals(0.6f, breakdown[0].fraction, 0.001f)
+    }
+
+    @Test
+    fun `counts only this month's uncategorized expenses`() {
+        val withinMonth = ZonedDateTime.of(2026, 9, 15, 10, 0, 0, 0, zone).toInstant()
+        val previousMonth = ZonedDateTime.of(2026, 8, 15, 10, 0, 0, 0, zone).toInstant()
+        val transactions = listOf(
+            transaction(TransactionType.EXPENSE, "60.00", withinMonth, TransactionCategory.UNCATEGORIZED),
+            transaction(TransactionType.EXPENSE, "60.00", withinMonth, TransactionCategory.FOOD),
+            transaction(TransactionType.EXPENSE, "60.00", previousMonth, TransactionCategory.UNCATEGORIZED),
+            transaction(TransactionType.INCOME, "60.00", withinMonth, TransactionCategory.UNCATEGORIZED),
+        )
+
+        assertEquals(1, FinanceCalculator.currentMonthUncategorizedCount(transactions, zone = zone, now = now))
     }
 }

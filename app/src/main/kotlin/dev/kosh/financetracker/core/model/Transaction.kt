@@ -82,6 +82,9 @@ data class Transaction(
     val paymentMethod: PaymentMethod?,
     val source: TransactionSource,
     val sourceMessageId: String?,
+    /** Full original SMS/notification text this was parsed from — powers the
+     * "how Kosh understood this" transaction detail view and the review queue. */
+    val rawSourceText: String?,
     val confidence: Double,
     val notes: String?,
     val createdAt: Instant,

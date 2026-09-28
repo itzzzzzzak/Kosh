@@ -30,6 +30,7 @@ class TransactionMappingTest {
             paymentMethod = PaymentMethod.UPI,
             source = TransactionSource.SMS,
             sourceMessageId = "msg-123",
+            rawSourceText = "Rs.450.00 debited from A/c XX1234 on 28-Sep-26 to VPA swiggy@ybl SWIGGY.",
             confidence = 0.94,
             notes = null,
             createdAt = now,

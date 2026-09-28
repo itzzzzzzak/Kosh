@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import dev.kosh.financetracker.ui.theme.KoshColors
 import dev.kosh.financetracker.ui.theme.Spacing
 
 @Composable
@@ -24,11 +23,11 @@ fun EmptyState(
             .padding(vertical = Spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = KoshColors.Foreground)
+        Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
         Text(
             description,
             style = MaterialTheme.typography.bodyMedium,
-            color = KoshColors.MutedForeground,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = Spacing.xs),
         )

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import dev.kosh.financetracker.core.model.TransactionCategory
 import dev.kosh.financetracker.core.model.TransactionType
 import kotlinx.coroutines.flow.Flow
 
@@ -24,4 +25,10 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET type = :type WHERE id IN (:ids)")
     suspend fun updateType(ids: List<Long>, type: TransactionType)
+
+    @Query("UPDATE transactions SET category = :category WHERE id = :id")
+    suspend fun updateCategory(id: Long, category: TransactionCategory)
+
+    @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
+    fun observeById(id: Long): Flow<TransactionEntity?>
 }

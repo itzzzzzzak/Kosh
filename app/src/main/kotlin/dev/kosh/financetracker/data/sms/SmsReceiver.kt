@@ -58,7 +58,8 @@ class SmsReceiver : BroadcastReceiver() {
 
                 val parsed = parserRegistry.parse(event)
                 if (parsed != null && parsed.direction != TransactionDirection.UNKNOWN) {
-                    val inserted = transactionRepository.saveIfNew(parsed.toTransaction(sourceMessageId = sourceMessageId))
+                    val transaction = parsed.toTransaction(sourceMessageId = sourceMessageId, rawSourceText = body)
+                    val inserted = transactionRepository.saveIfNew(transaction)
                     if (inserted) transactionRepository.reconcileTransfers()
                 }
             } finally {
