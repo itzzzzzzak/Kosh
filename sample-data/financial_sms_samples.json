@@ -1,0 +1,44 @@
+[
+  {
+    "bank": "HDFC",
+    "sender": "CP-HDFCBN-S",
+    "body": "Sent Rs.119.18 From HDFC Bank A/C *5590 To swiggy@ybl On 28/09/26 Ref No 234567890123 Not you? Call 18002586161",
+    "expectedDirection": "DEBIT",
+    "expectedAmount": "119.18"
+  },
+  {
+    "bank": "HDFC",
+    "sender": "HDFCBK",
+    "body": "Rs.450.00 debited from A/c XX1234 on 28-Sep-26 to VPA swiggy@ybl SWIGGY. Ref No 234567890124. Not you? Call 18002586161",
+    "expectedDirection": "DEBIT",
+    "expectedAmount": "450.00"
+  },
+  {
+    "bank": "HDFC",
+    "sender": "HDFCBK",
+    "body": "Rs.49,800.00 credited to A/c XX1234 on 28-Sep-26 by NEFT. Info: SALARY. Avl Bal Rs.55,230.00",
+    "expectedDirection": "CREDIT",
+    "expectedAmount": "49800.00"
+  },
+  {
+    "bank": "Kotak",
+    "sender": "KOTAKB",
+    "body": "Rs.500.00 debited from your A/c XX8892 on 28-Sep-26 to VPA merchant@okhdfcbank via UPI Ref 234567890125. Avl Bal Rs 5000.00 -Kotak Bank",
+    "expectedDirection": "DEBIT",
+    "expectedAmount": "500.00"
+  },
+  {
+    "bank": "Kotak",
+    "sender": "KOTAKB",
+    "body": "You have received Rs.2000.00 in your A/c XX8892 on 28-Sep-26 from VPA sender@okaxis via UPI Ref 234567890126.-Kotak Bank",
+    "expectedDirection": "CREDIT",
+    "expectedAmount": "2000.00"
+  },
+  {
+    "bank": null,
+    "sender": "AD-SBIUPI-S",
+    "body": "Rs.220.00 debited via UPI on 28-Sep-26 to merchant@upi Ref 234567890127",
+    "expectedDirection": "DEBIT",
+    "expectedAmount": "220.00"
+  }
+]

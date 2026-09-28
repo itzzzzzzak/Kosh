@@ -1,0 +1,20 @@
+*.iml
+.gradle/
+/.idea/
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.apk
+*.keystore
+!debug.keystore
+
+# Never commit pulled device data — may contain real personal financial info.
+*.db
+*.db-wal
+*.db-shm
+/*.png
+/*.log
+/*.txt
