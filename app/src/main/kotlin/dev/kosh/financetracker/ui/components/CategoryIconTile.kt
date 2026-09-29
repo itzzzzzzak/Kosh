@@ -1,10 +1,9 @@
 package dev.kosh.financetracker.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,25 +13,32 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.kosh.financetracker.core.model.TransactionCategory
 
 /**
- * Deliberately restrained — a single neutral tone rather than a per-merchant color
- * wheel, per the brand kit: "reserve gold for emphasis."
+ * Rounded-square category badge — a stable color per category (see [colorFor]) with
+ * a single-letter monogram, standing in for a real merchant/brand icon set we don't
+ * have (and won't fetch/bundle third-party brand logos for trademark reasons).
  */
 @Composable
-fun MerchantAvatar(label: String, size: Dp = 40.dp) {
+fun CategoryIconTile(
+    category: TransactionCategory?,
+    label: String,
+    size: Dp = 40.dp,
+) {
+    val color = colorFor(category)
     Box(
         modifier = Modifier
             .size(size)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+            .clip(RoundedCornerShape(size * 0.3f))
+            .background(color.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             label.trim().take(1).uppercase().ifEmpty { "?" },
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
+            color = color,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyLarge,
         )
     }
 }

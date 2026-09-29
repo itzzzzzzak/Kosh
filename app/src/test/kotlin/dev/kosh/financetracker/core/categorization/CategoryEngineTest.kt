@@ -37,4 +37,26 @@ class CategoryEngineTest {
         assertEquals(TransactionCategory.UNCATEGORIZED, CategoryEngine.categorize(null))
         assertEquals(TransactionCategory.UNCATEGORIZED, CategoryEngine.categorize(""))
     }
+
+    @Test
+    fun `matches the exact merchant name Vi as Bills, not a substring false-positive`() {
+        // Regression: a keyword rule of "vi " (with a trailing space, to avoid matching
+        // inside words like "Vijay" or "Investment") never matched the bare merchant
+        // string "Vi" itself, so every Vodafone Idea recharge fell through to Uncategorized.
+        assertEquals(TransactionCategory.BILLS, CategoryEngine.categorize("Vi"))
+        assertEquals(TransactionCategory.BILLS, CategoryEngine.categorize("vi"))
+    }
+
+    @Test
+    fun `does not false-positive match unrelated merchants containing vi as a substring`() {
+        assertEquals(TransactionCategory.UNCATEGORIZED, CategoryEngine.categorize("Vijay Sharma"))
+        assertEquals(TransactionCategory.OTHER, CategoryEngine.categorize("Groww Invest Tech Pvt Ltd"))
+    }
+
+    @Test
+    fun `categorizes known merchants across the newly added categories`() {
+        assertEquals(TransactionCategory.TECHNOLOGY, CategoryEngine.categorize("Croma Electronics"))
+        assertEquals(TransactionCategory.HOME, CategoryEngine.categorize("IKEA"))
+        assertEquals(TransactionCategory.OTHER, CategoryEngine.categorize("Zerodha Broking"))
+    }
 }

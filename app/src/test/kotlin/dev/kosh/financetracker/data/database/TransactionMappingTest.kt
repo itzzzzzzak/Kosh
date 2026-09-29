@@ -27,6 +27,7 @@ class TransactionMappingTest {
             rawMerchant = "UPI-SWIGGY-BANGALORE",
             accountId = 1L,
             accountSuffix = "1234",
+            bank = "HDFC",
             paymentMethod = PaymentMethod.UPI,
             source = TransactionSource.SMS,
             sourceMessageId = "msg-123",

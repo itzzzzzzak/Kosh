@@ -10,6 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
@@ -23,6 +24,8 @@ class FinanceCalculatorTest {
         amount: String,
         timestamp: Instant,
         category: TransactionCategory = TransactionCategory.UNCATEGORIZED,
+        bank: String? = null,
+        accountSuffix: String? = null,
     ) = Transaction(
         timestamp = timestamp,
         amount = BigDecimal(amount),
@@ -32,7 +35,8 @@ class FinanceCalculatorTest {
         merchant = null,
         rawMerchant = null,
         accountId = null,
-        accountSuffix = null,
+        accountSuffix = accountSuffix,
+        bank = bank,
         paymentMethod = PaymentMethod.UPI,
         source = TransactionSource.SMS,
         sourceMessageId = null,
@@ -114,5 +118,29 @@ class FinanceCalculatorTest {
         )
 
         assertEquals(1, FinanceCalculator.currentMonthUncategorizedCount(transactions, zone = zone, now = now))
+    }
+
+    @Test
+    fun `groups account summaries by bank and account suffix, sorted by spend descending`() {
+        val withinMonth = ZonedDateTime.of(2026, 9, 15, 10, 0, 0, 0, zone).toInstant()
+        val previousMonth = ZonedDateTime.of(2026, 8, 15, 10, 0, 0, 0, zone).toInstant()
+        val transactions = listOf(
+            transaction(TransactionType.EXPENSE, "100.00", withinMonth, bank = "HDFC", accountSuffix = "5590"),
+            transaction(TransactionType.EXPENSE, "50.00", withinMonth, bank = "HDFC", accountSuffix = "5590"),
+            transaction(TransactionType.EXPENSE, "500.00", withinMonth, bank = "Kotak", accountSuffix = "9996"),
+            // Excluded: no account suffix parsed, previous month, and a TRANSFER type.
+            transaction(TransactionType.EXPENSE, "999.00", withinMonth, bank = "HDFC", accountSuffix = null),
+            transaction(TransactionType.EXPENSE, "999.00", previousMonth, bank = "HDFC", accountSuffix = "5590"),
+        )
+
+        val summaries = FinanceCalculator.accountSummariesForMonth(transactions, YearMonth.of(2026, 9), zone)
+
+        assertEquals(2, summaries.size)
+        assertEquals("Kotak", summaries[0].bank)
+        assertEquals(BigDecimal("500.00"), summaries[0].monthSpend)
+        assertEquals(1, summaries[0].transactionCount)
+        assertEquals("HDFC", summaries[1].bank)
+        assertEquals(BigDecimal("150.00"), summaries[1].monthSpend)
+        assertEquals(2, summaries[1].transactionCount)
     }
 }

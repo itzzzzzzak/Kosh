@@ -9,16 +9,23 @@ import dev.kosh.financetracker.core.model.TransactionType
 import java.time.Instant
 
 /**
- * Deliberately naive DEBIT->EXPENSE / CREDIT->INCOME mapping. This is NOT the real
- * type classifier from the plan (transfers, EMI, credit-card payments, investments
- * are all still misclassified as plain EXPENSE/INCOME here) — it exists only so
- * confirmed SMS transactions have somewhere to live before that classifier exists.
- * Category comes from the keyword-rule CategoryEngine tier.
+ * Deliberately naive DEBIT->EXPENSE mapping — this is NOT the real type classifier
+ * from the plan (transfers, EMI, credit-card payments, investments are all still
+ * misclassified as plain EXPENSE here). CREDIT is narrower: "credit does not
+ * automatically mean income" (finance integrity rule) — only a recognizable
+ * salary/payroll credit becomes INCOME; everything else stays UNKNOWN rather than
+ * inflating the Income figure with refunds, P2P transfers-in, etc. Category comes
+ * from the keyword-rule CategoryEngine tier.
  */
 fun ParsedTransaction.toTransaction(sourceMessageId: String, rawSourceText: String): Transaction {
     val type = when (direction) {
         TransactionDirection.DEBIT -> TransactionType.EXPENSE
-        TransactionDirection.CREDIT -> TransactionType.INCOME
+        TransactionDirection.CREDIT ->
+            if (IncomeClassifier.isLikelySalary(merchantRaw, rawSourceText)) {
+                TransactionType.INCOME
+            } else {
+                TransactionType.UNKNOWN
+            }
         TransactionDirection.UNKNOWN -> TransactionType.UNKNOWN
     }
 
@@ -33,6 +40,7 @@ fun ParsedTransaction.toTransaction(sourceMessageId: String, rawSourceText: Stri
         rawMerchant = merchantRaw,
         accountId = null,
         accountSuffix = accountSuffix,
+        bank = bank,
         paymentMethod = paymentMethod,
         source = TransactionSource.SMS,
         sourceMessageId = sourceMessageId,

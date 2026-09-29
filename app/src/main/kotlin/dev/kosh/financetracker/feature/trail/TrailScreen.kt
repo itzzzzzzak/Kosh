@@ -1,28 +1,33 @@
 package dev.kosh.financetracker.feature.trail
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Divider
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,13 +35,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.kosh.financetracker.core.model.Transaction
 import dev.kosh.financetracker.core.model.TransactionDirection
+import dev.kosh.financetracker.core.model.TransactionType
+import dev.kosh.financetracker.ui.components.CategoryIconTile
 import dev.kosh.financetracker.ui.components.EmptyState
-import dev.kosh.financetracker.ui.components.MerchantAvatar
+import dev.kosh.financetracker.ui.components.KoshWordmark
+import dev.kosh.financetracker.ui.format.formatRupees
+import dev.kosh.financetracker.ui.theme.KoshColors
 import dev.kosh.financetracker.ui.theme.KoshExtendedTheme
 import dev.kosh.financetracker.ui.theme.Spacing
 import java.time.LocalDate
@@ -56,60 +66,69 @@ fun TrailScreen(
         state.transactions.groupBy { it.timestamp.atZone(zone).toLocalDate() }
     }
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(KoshColors.BaseBlack)
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(horizontal = Spacing.md),
+    ) {
+        Spacer(Modifier.height(Spacing.sm))
+        KoshWordmark()
+        Spacer(Modifier.height(Spacing.md))
+        Text("Activity", style = MaterialTheme.typography.titleLarge, color = KoshColors.PrimaryText)
+        Text(
+            "All transactions from your bank SMS",
+            style = MaterialTheme.typography.bodyMedium,
+            color = KoshColors.SecondaryText,
+        )
+        Spacer(Modifier.height(Spacing.md))
+
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = viewModel::setQuery,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Search descriptions, amounts or accounts", color = KoshColors.SecondaryText) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = KoshColors.SecondaryText) },
+            singleLine = true,
+            shape = RoundedCornerShape(20.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = KoshColors.RaisedGraphite.copy(alpha = 0.7f),
+                focusedContainerColor = KoshColors.RaisedGraphite.copy(alpha = 0.7f),
+                unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+                focusedBorderColor = KoshExtendedTheme.colors.accentText,
+                focusedTextColor = KoshColors.PrimaryText,
+                unfocusedTextColor = KoshColors.PrimaryText,
+                cursorColor = KoshExtendedTheme.colors.accentText,
+            ),
+        )
+        Spacer(Modifier.height(Spacing.sm))
+
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = Spacing.md),
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
         ) {
-            Spacer(Modifier.height(Spacing.sm))
-            Text("Kosh", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
-            Spacer(Modifier.height(Spacing.xs))
-            Text("Trail", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
-            Text(
-                "All transactions from your bank SMS",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            FilterChipRow(state.filter, viewModel::setFilter)
+        }
+        Spacer(Modifier.height(Spacing.sm))
+
+        if (state.transactions.isEmpty()) {
+            EmptyState(
+                title = "No transactions found",
+                description = "Try a different search or filter.",
             )
-            Spacer(Modifier.height(Spacing.md))
-
-            OutlinedTextField(
-                value = state.query,
-                onValueChange = viewModel::setQuery,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search descriptions, amounts or accounts") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                singleLine = true,
-                shape = MaterialTheme.shapes.large,
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-            Spacer(Modifier.height(Spacing.sm))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                FilterChipRow(state.filter, viewModel::setFilter)
-            }
-            Spacer(Modifier.height(Spacing.sm))
-
-            if (state.transactions.isEmpty()) {
-                EmptyState(
-                    title = "No transactions found",
-                    description = "Try a different search or filter.",
-                )
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(bottom = Spacing.xxl),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                ) {
-                    grouped.entries.sortedByDescending { it.key }.forEach { (date, dayTransactions) ->
-                        item { DateHeader(date) }
-                        items(dayTransactions, key = { it.id }) { transaction ->
-                            TrailRow(transaction, onClick = { onOpenTransaction(transaction.id) })
-                            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
-                        }
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(bottom = Spacing.xxl),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                grouped.entries.sortedByDescending { it.key }.forEach { (date, dayTransactions) ->
+                    item { DateHeader(date) }
+                    items(dayTransactions, key = { it.id }) { transaction ->
+                        TrailRow(transaction, onClick = { onOpenTransaction(transaction.id) })
+                        HorizontalDivider(color = KoshColors.Divider, thickness = 1.dp)
                     }
                 }
             }
@@ -121,21 +140,26 @@ fun TrailScreen(
 private fun FilterChipRow(selected: TrailFilter, onSelect: (TrailFilter) -> Unit) {
     val options = listOf(
         TrailFilter.ALL to "All",
-        TrailFilter.EXPENSES to "Expenses",
+        TrailFilter.EXPENSES to "Spending",
         TrailFilter.INCOME to "Income",
         TrailFilter.TRANSFERS to "Transfers",
     )
     options.forEach { (filter, label) ->
-        FilterChip(
-            selected = selected == filter,
-            onClick = { onSelect(filter) },
-            label = { Text(label) },
-            colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = KoshExtendedTheme.colors.accentText.copy(alpha = 0.16f),
-                selectedLabelColor = KoshExtendedTheme.colors.accentText,
-            ),
-        )
-        Spacer(Modifier.width(Spacing.xs))
+        val isSelected = selected == filter
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(if (isSelected) KoshExtendedTheme.colors.accentText.copy(alpha = 0.16f) else KoshColors.RaisedGraphite.copy(alpha = 0.6f))
+                .clickable { onSelect(filter) }
+                .padding(horizontal = Spacing.ms, vertical = Spacing.sm),
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isSelected) KoshExtendedTheme.colors.accentText else KoshColors.SecondaryText,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        }
     }
 }
 
@@ -151,13 +175,16 @@ private fun DateHeader(date: LocalDate) {
         Text(
             "$formatted $dayLabel",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = KoshColors.SecondaryText,
         )
     }
 }
 
 @Composable
 private fun TrailRow(transaction: Transaction, onClick: () -> Unit) {
+    val isTransfer = transaction.type == TransactionType.TRANSFER
+    val isExpense = transaction.direction == TransactionDirection.DEBIT
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -165,37 +192,54 @@ private fun TrailRow(transaction: Transaction, onClick: () -> Unit) {
             .padding(vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MerchantAvatar(transaction.merchant ?: "?", size = 32.dp)
+        CategoryIconTile(transaction.category, transaction.merchant ?: "?", size = 36.dp)
         Spacer(Modifier.width(Spacing.ms))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 transaction.merchant ?: "Unknown",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = KoshColors.PrimaryText,
             )
             Text(
-                buildString {
-                    append(transaction.accountSuffix?.let { "Card •••• $it" } ?: (transaction.paymentMethod?.name ?: ""))
-                    append(" · ")
-                    append(transaction.source.name)
+                if (isTransfer) {
+                    "Transfer · Excluded from spending"
+                } else {
+                    accountSubtitle(transaction)
                 },
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isTransfer) KoshExtendedTheme.colors.comparison else KoshColors.SecondaryText,
             )
         }
         Column(horizontalAlignment = Alignment.End) {
-            val isExpense = transaction.direction == TransactionDirection.DEBIT
+            val sign = if (isTransfer) "" else if (isExpense) "-" else "+"
+            val amountColor = when {
+                isTransfer -> KoshColors.SecondaryText
+                isExpense -> KoshExtendedTheme.colors.expense
+                else -> KoshExtendedTheme.colors.income
+            }
             Text(
-                "${if (isExpense) "-" else "+"}₹${transaction.amount}",
-                style = MaterialTheme.typography.bodyLarge,
+                "$sign${formatRupees(transaction.amount)}",
+                style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                 fontWeight = FontWeight.SemiBold,
-                color = if (isExpense) KoshExtendedTheme.colors.expense else KoshExtendedTheme.colors.income,
+                color = amountColor,
             )
             Text(
                 transaction.timestamp.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("h:mm a")),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = KoshColors.SecondaryText,
             )
         }
     }
+}
+
+private fun accountSubtitle(transaction: Transaction): String {
+    val maskedAccount = transaction.accountSuffix?.let { suffix ->
+        val bank = transaction.bank
+        if (bank != null) "$bank ••$suffix" else "••$suffix"
+    }
+    val parts = listOfNotNull(
+        maskedAccount ?: transaction.paymentMethod?.name,
+        transaction.source.name,
+    )
+    return parts.joinToString(" · ")
 }

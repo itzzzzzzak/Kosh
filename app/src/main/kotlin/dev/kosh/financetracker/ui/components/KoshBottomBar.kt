@@ -28,18 +28,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.kosh.financetracker.navigation.KoshDestination
 import dev.kosh.financetracker.ui.theme.KoshExtendedTheme
 import dev.kosh.financetracker.ui.theme.Spacing
 
-private data class BottomNavItem(val destination: KoshDestination, val label: String, val icon: ImageVector)
+private data class BottomNavItem(
+    val destination: KoshDestination,
+    val label: String,
+    val icon: @Composable (tint: Color) -> Unit,
+)
 
 private val ITEMS = listOf(
-    BottomNavItem(KoshDestination.Overview, "Overview", Icons.Filled.Home),
-    BottomNavItem(KoshDestination.Trail, "Trail", Icons.Filled.List),
-    BottomNavItem(KoshDestination.Review, "Review", Icons.Filled.CheckCircle),
+    BottomNavItem(KoshDestination.Overview, "Home") { tint -> Icon(Icons.Filled.Home, contentDescription = "Home", tint = tint) },
+    BottomNavItem(KoshDestination.Trail, "Activity") { tint -> Icon(Icons.Filled.List, contentDescription = "Activity", tint = tint) },
+    BottomNavItem(KoshDestination.Insights, "Spending") { tint -> InsightsIcon(tint = tint) },
+    BottomNavItem(KoshDestination.Review, "Review") { tint -> Icon(Icons.Filled.CheckCircle, contentDescription = "Review", tint = tint) },
 )
 
 @Composable
@@ -53,8 +58,8 @@ fun KoshBottomBar(
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = 0.dp,
+        shadowElevation = 2.dp,
     ) {
         Row(
             modifier = Modifier
@@ -96,7 +101,7 @@ private fun BottomNavEntry(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            Icon(item.icon, contentDescription = item.label, tint = contentColor)
+            item.icon(contentColor)
             if (badgeCount > 0) {
                 Box(
                     modifier = Modifier

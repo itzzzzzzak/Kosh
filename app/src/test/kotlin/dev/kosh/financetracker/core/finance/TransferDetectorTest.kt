@@ -33,6 +33,7 @@ class TransferDetectorTest {
         rawMerchant = null,
         accountId = null,
         accountSuffix = accountSuffix,
+        bank = null,
         paymentMethod = PaymentMethod.UPI,
         source = TransactionSource.SMS,
         sourceMessageId = null,
@@ -95,6 +96,20 @@ class TransferDetectorTest {
         val matched = TransferDetector.findTransferPairs(listOf(emi, credit))
 
         assertTrue(matched.isEmpty())
+    }
+
+    @Test
+    fun `matches a self-transfer whose credit leg is UNKNOWN, not INCOME`() {
+        // Regression: since IncomeClassifier narrowed CREDIT->INCOME to salary-only, a
+        // self-transfer's incoming leg is TransactionType.UNKNOWN, not INCOME, until this
+        // detector relabels it TRANSFER. The candidate filter must not exclude UNKNOWN.
+        val now = Instant.parse("2026-09-28T08:00:00Z")
+        val hdfcDebit = transaction("100.00", TransactionDirection.DEBIT, TransactionType.EXPENSE, now, "5590")
+        val kotakCredit = transaction("100.00", TransactionDirection.CREDIT, TransactionType.UNKNOWN, now.plusSeconds(5), "9996")
+
+        val matched = TransferDetector.findTransferPairs(listOf(hdfcDebit, kotakCredit))
+
+        assertEquals(setOf(hdfcDebit.id, kotakCredit.id), matched)
     }
 
     @Test

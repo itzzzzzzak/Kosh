@@ -56,6 +56,8 @@ class SmsSyncManager @Inject constructor(
             }
 
             transactionRepository.reconcileTransfers()
+            transactionRepository.reconcileIncomeClassification()
+            transactionRepository.reconcileCategories()
             all.size to imported
         }
 

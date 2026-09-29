@@ -79,6 +79,10 @@ data class Transaction(
     /** Raw account suffix (e.g. "5590") extracted by the parser. Used for transfer
      * detection before a full Account entity exists (Phase 19). */
     val accountSuffix: String?,
+    /** Bank/issuer name (e.g. "HDFC") as recognized by the parser — powers the
+     * masked account display ("HDFC ••1234") in Activity. Null for a generic/
+     * unrecognized-bank parse. */
+    val bank: String?,
     val paymentMethod: PaymentMethod?,
     val source: TransactionSource,
     val sourceMessageId: String?,

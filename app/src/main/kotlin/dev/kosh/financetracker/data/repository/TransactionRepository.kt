@@ -1,8 +1,11 @@
 package dev.kosh.financetracker.data.repository
 
+import dev.kosh.financetracker.core.categorization.CategoryEngine
+import dev.kosh.financetracker.core.classifier.IncomeClassifier
 import dev.kosh.financetracker.core.finance.TransferDetector
 import dev.kosh.financetracker.core.model.Transaction
 import dev.kosh.financetracker.core.model.TransactionCategory
+import dev.kosh.financetracker.core.model.TransactionDirection
 import dev.kosh.financetracker.core.model.TransactionType
 import dev.kosh.financetracker.data.database.TransactionDao
 import dev.kosh.financetracker.data.database.toDomain
@@ -21,6 +24,15 @@ interface TransactionRepository {
 
     /** Re-runs transfer detection across all stored transactions and reclassifies matches. */
     suspend fun reconcileTransfers()
+
+    /** Re-runs the salary/income heuristic across all stored CREDIT transactions —
+     * fixes rows already imported under an older, looser classification rule. */
+    suspend fun reconcileIncomeClassification()
+
+    /** Re-runs CategoryEngine against every still-UNCATEGORIZED row — picks up new
+     * keyword-rule coverage retroactively without touching rows a user already
+     * confirmed via Review/Detail (those are no longer UNCATEGORIZED). */
+    suspend fun reconcileCategories()
 
     suspend fun setCategory(id: Long, category: TransactionCategory)
 }
@@ -47,6 +59,41 @@ class RoomTransactionRepository @Inject constructor(
         if (transferIds.isNotEmpty()) {
             dao.updateType(transferIds.toList(), TransactionType.TRANSFER)
         }
+    }
+
+    override suspend fun reconcileIncomeClassification() {
+        val all = dao.getAll().map { it.toDomain() }
+        val toIncome = mutableListOf<Long>()
+        val toUnknown = mutableListOf<Long>()
+
+        for (transaction in all) {
+            if (transaction.direction != TransactionDirection.CREDIT) continue
+            if (transaction.type != TransactionType.INCOME && transaction.type != TransactionType.UNKNOWN) continue
+
+            val shouldBeIncome = IncomeClassifier.isLikelySalary(transaction.merchant, transaction.rawSourceText)
+            when {
+                shouldBeIncome && transaction.type != TransactionType.INCOME -> toIncome += transaction.id
+                !shouldBeIncome && transaction.type == TransactionType.INCOME -> toUnknown += transaction.id
+            }
+        }
+
+        if (toIncome.isNotEmpty()) dao.updateType(toIncome, TransactionType.INCOME)
+        if (toUnknown.isNotEmpty()) dao.updateType(toUnknown, TransactionType.UNKNOWN)
+    }
+
+    override suspend fun reconcileCategories() {
+        val all = dao.getAll().map { it.toDomain() }
+        val idsByNewCategory = mutableMapOf<TransactionCategory, MutableList<Long>>()
+
+        for (transaction in all) {
+            if (transaction.category != TransactionCategory.UNCATEGORIZED && transaction.category != null) continue
+            val recategorized = CategoryEngine.categorize(transaction.merchant)
+            if (recategorized != TransactionCategory.UNCATEGORIZED) {
+                idsByNewCategory.getOrPut(recategorized) { mutableListOf() } += transaction.id
+            }
+        }
+
+        idsByNewCategory.forEach { (category, ids) -> dao.updateCategories(ids, category) }
     }
 
     override suspend fun setCategory(id: Long, category: TransactionCategory) {

@@ -29,6 +29,9 @@ interface TransactionDao {
     @Query("UPDATE transactions SET category = :category WHERE id = :id")
     suspend fun updateCategory(id: Long, category: TransactionCategory)
 
+    @Query("UPDATE transactions SET category = :category WHERE id IN (:ids)")
+    suspend fun updateCategories(ids: List<Long>, category: TransactionCategory)
+
     @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
     fun observeById(id: Long): Flow<TransactionEntity?>
 }

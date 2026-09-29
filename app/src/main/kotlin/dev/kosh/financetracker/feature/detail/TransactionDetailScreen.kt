@@ -41,7 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import dev.kosh.financetracker.core.model.Transaction
 import dev.kosh.financetracker.core.model.TransactionCategory
 import dev.kosh.financetracker.core.model.TransactionDirection
-import dev.kosh.financetracker.ui.components.MerchantAvatar
+import dev.kosh.financetracker.ui.components.CategoryIconTile
 import dev.kosh.financetracker.ui.components.REVIEW_PICKER_CATEGORIES
 import dev.kosh.financetracker.ui.components.labelFor
 import dev.kosh.financetracker.ui.theme.KoshExtendedTheme
@@ -236,7 +236,7 @@ private fun DetailsTab(
                         .padding(vertical = Spacing.sm),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    MerchantAvatar(labelFor(category), size = 28.dp)
+                    CategoryIconTile(category, labelFor(category), size = 28.dp)
                     Spacer(Modifier.width(Spacing.ms))
                     Text(labelFor(category), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                 }

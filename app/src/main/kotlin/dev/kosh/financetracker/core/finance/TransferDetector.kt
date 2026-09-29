@@ -20,8 +20,14 @@ object TransferDetector {
 
     /** Returns the ids of transactions that form a transfer pair. */
     fun findTransferPairs(transactions: List<Transaction>): Set<Long> {
+        // UNKNOWN is included deliberately: since IncomeClassifier narrowed CREDIT->INCOME
+        // to salary-only, a self-transfer's incoming leg is UNKNOWN (not INCOME) until this
+        // detector re-labels it TRANSFER. Excluding UNKNOWN here silently broke matching for
+        // every non-salary credit — the exact case this detector exists to catch.
         val candidates = transactions.filter {
-            it.type == TransactionType.EXPENSE || it.type == TransactionType.INCOME
+            it.type == TransactionType.EXPENSE ||
+                it.type == TransactionType.INCOME ||
+                it.type == TransactionType.UNKNOWN
         }
         val matched = mutableSetOf<Long>()
 
