@@ -7,11 +7,14 @@ import dev.kosh.financetracker.core.model.Transaction
 import dev.kosh.financetracker.core.model.TransactionCategory
 import dev.kosh.financetracker.core.model.TransactionDirection
 import dev.kosh.financetracker.core.model.TransactionType
+import dev.kosh.financetracker.data.database.MerchantCategoryMappingDao
+import dev.kosh.financetracker.data.database.MerchantCategoryMappingEntity
 import dev.kosh.financetracker.data.database.TransactionDao
 import dev.kosh.financetracker.data.database.toDomain
 import dev.kosh.financetracker.data.database.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 import javax.inject.Inject
 
 interface TransactionRepository {
@@ -34,11 +37,18 @@ interface TransactionRepository {
      * confirmed via Review/Detail (those are no longer UNCATEGORIZED). */
     suspend fun reconcileCategories()
 
+    /** Sets [id]'s category and, when it has a merchant, remembers the choice so
+     * every other (and future) transaction from that same merchant is categorized
+     * the same way without needing review again. */
     suspend fun setCategory(id: Long, category: TransactionCategory)
 }
 
+private fun normalizeMerchant(merchant: String?): String? =
+    merchant?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
+
 class RoomTransactionRepository @Inject constructor(
     private val dao: TransactionDao,
+    private val merchantCategoryMappingDao: MerchantCategoryMappingDao,
 ) : TransactionRepository {
 
     override fun observeTransactions(): Flow<List<Transaction>> =
@@ -83,11 +93,16 @@ class RoomTransactionRepository @Inject constructor(
 
     override suspend fun reconcileCategories() {
         val all = dao.getAll().map { it.toDomain() }
+        val learnedMappings = merchantCategoryMappingDao.getAll()
+            .associate { it.merchant to it.category }
         val idsByNewCategory = mutableMapOf<TransactionCategory, MutableList<Long>>()
 
         for (transaction in all) {
             if (transaction.category != TransactionCategory.UNCATEGORIZED && transaction.category != null) continue
-            val recategorized = CategoryEngine.categorize(transaction.merchant)
+            // Historical mapping (a category the user already picked for this exact
+            // merchant) takes priority over the generic keyword-rule tier.
+            val recategorized = normalizeMerchant(transaction.merchant)?.let { learnedMappings[it] }
+                ?: CategoryEngine.categorize(transaction.merchant)
             if (recategorized != TransactionCategory.UNCATEGORIZED) {
                 idsByNewCategory.getOrPut(recategorized) { mutableListOf() } += transaction.id
             }
@@ -98,5 +113,28 @@ class RoomTransactionRepository @Inject constructor(
 
     override suspend fun setCategory(id: Long, category: TransactionCategory) {
         dao.updateCategory(id, category)
+
+        val merchant = normalizeMerchant(dao.getByIdOnce(id)?.merchant) ?: return
+        merchantCategoryMappingDao.upsert(
+            MerchantCategoryMappingEntity(
+                merchant = merchant,
+                category = category,
+                updatedAtEpochMillis = Instant.now().toEpochMilli(),
+            ),
+        )
+
+        // Immediately propagate to every other still-unresolved transaction from the
+        // same merchant, not just future imports — the whole point is "never ask
+        // about this merchant again."
+        val sameMerchantIds = dao.getAll()
+            .filter {
+                it.id != id &&
+                    normalizeMerchant(it.merchant) == merchant &&
+                    (it.category == TransactionCategory.UNCATEGORIZED || it.category == null)
+            }
+            .map { it.id }
+        if (sameMerchantIds.isNotEmpty()) {
+            dao.updateCategories(sameMerchantIds, category)
+        }
     }
 }

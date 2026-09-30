@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.kosh.financetracker.data.database.FinanceDatabase
+import dev.kosh.financetracker.data.database.MerchantCategoryMappingDao
 import dev.kosh.financetracker.data.database.TransactionDao
 import dev.kosh.financetracker.data.repository.RoomTransactionRepository
 import dev.kosh.financetracker.data.repository.TransactionRepository
@@ -29,7 +30,13 @@ object DatabaseModule {
         database.transactionDao()
 
     @Provides
+    fun provideMerchantCategoryMappingDao(database: FinanceDatabase): MerchantCategoryMappingDao =
+        database.merchantCategoryMappingDao()
+
+    @Provides
     @Singleton
-    fun provideTransactionRepository(dao: TransactionDao): TransactionRepository =
-        RoomTransactionRepository(dao)
+    fun provideTransactionRepository(
+        dao: TransactionDao,
+        merchantCategoryMappingDao: MerchantCategoryMappingDao,
+    ): TransactionRepository = RoomTransactionRepository(dao, merchantCategoryMappingDao)
 }
