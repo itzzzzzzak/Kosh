@@ -37,6 +37,7 @@ data class TransactionEntity(
     val confidence: Double,
     val notes: String?,
     val createdAtEpochMillis: Long,
+    val balanceAfter: BigDecimal?,
 )
 
 fun TransactionEntity.toDomain(): Transaction = Transaction(
@@ -58,6 +59,7 @@ fun TransactionEntity.toDomain(): Transaction = Transaction(
     confidence = confidence,
     notes = notes,
     createdAt = Instant.ofEpochMilli(createdAtEpochMillis),
+    balanceAfter = balanceAfter,
 )
 
 fun Transaction.toEntity(): TransactionEntity = TransactionEntity(
@@ -79,4 +81,5 @@ fun Transaction.toEntity(): TransactionEntity = TransactionEntity(
     confidence = confidence,
     notes = notes,
     createdAtEpochMillis = createdAt.toEpochMilli(),
+    balanceAfter = balanceAfter,
 )

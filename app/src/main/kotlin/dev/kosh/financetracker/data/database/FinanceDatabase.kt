@@ -6,7 +6,7 @@ import androidx.room.TypeConverters
 
 @Database(
     entities = [TransactionEntity::class, MerchantCategoryMappingEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

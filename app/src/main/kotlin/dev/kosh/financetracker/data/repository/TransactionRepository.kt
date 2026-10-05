@@ -7,6 +7,9 @@ import dev.kosh.financetracker.core.model.Transaction
 import dev.kosh.financetracker.core.model.TransactionCategory
 import dev.kosh.financetracker.core.model.TransactionDirection
 import dev.kosh.financetracker.core.model.TransactionType
+import dev.kosh.financetracker.core.statement.StatementImportResult
+import dev.kosh.financetracker.core.statement.StatementTransaction
+import dev.kosh.financetracker.core.statement.toTransaction
 import dev.kosh.financetracker.data.database.MerchantCategoryMappingDao
 import dev.kosh.financetracker.data.database.MerchantCategoryMappingEntity
 import dev.kosh.financetracker.data.database.TransactionDao
@@ -15,6 +18,7 @@ import dev.kosh.financetracker.data.database.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
+import java.time.ZoneId
 import javax.inject.Inject
 
 interface TransactionRepository {
@@ -41,6 +45,13 @@ interface TransactionRepository {
      * every other (and future) transaction from that same merchant is categorized
      * the same way without needing review again. */
     suspend fun setCategory(id: Long, category: TransactionCategory)
+
+    /** Imports parsed statement rows as the ground truth for the account+period
+     * they cover — every existing transaction for that account (by suffix, any
+     * source) within the statement's date range is deleted and replaced. One
+     * result per distinct account suffix found in [transactions] (normally one,
+     * since a bank statement covers a single account). */
+    suspend fun importStatement(transactions: List<StatementTransaction>): List<StatementImportResult.Imported>
 }
 
 private fun normalizeMerchant(merchant: String?): String? =
@@ -136,5 +147,35 @@ class RoomTransactionRepository @Inject constructor(
         if (sameMerchantIds.isNotEmpty()) {
             dao.updateCategories(sameMerchantIds, category)
         }
+    }
+
+    override suspend fun importStatement(transactions: List<StatementTransaction>): List<StatementImportResult.Imported> {
+        val zone = ZoneId.systemDefault()
+        val results = mutableListOf<StatementImportResult.Imported>()
+
+        for ((accountSuffix, rows) in transactions.groupBy { it.accountSuffix }) {
+            val periodStart = rows.minOf { it.timestamp }.atZone(zone).toLocalDate()
+            val periodEnd = rows.maxOf { it.timestamp }.atZone(zone).toLocalDate()
+            val startMillis = periodStart.atStartOfDay(zone).toInstant().toEpochMilli()
+            val endMillis = periodEnd.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+
+            val replacedCount = dao.countForAccountInRange(accountSuffix, startMillis, endMillis)
+            dao.deleteForAccountInRange(accountSuffix, startMillis, endMillis)
+            rows.forEach { dao.insert(it.toTransaction().toEntity()) }
+
+            results += StatementImportResult.Imported(
+                bank = rows.first().bank,
+                accountSuffix = accountSuffix,
+                importedCount = rows.size,
+                replacedCount = replacedCount,
+                periodStart = periodStart,
+                periodEnd = periodEnd,
+            )
+        }
+
+        reconcileTransfers()
+        reconcileCategories()
+        reconcileIncomeClassification()
+        return results
     }
 }

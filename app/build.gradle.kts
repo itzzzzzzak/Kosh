@@ -86,6 +86,12 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
 
+    // HDFC's statement export is legacy binary .xls (no CSV option available) —
+    // this is the minimal way to read that format; poi-ooxml (needed for modern
+    // .xlsx) is deliberately NOT added since we hand-parse .xlsx ourselves
+    // (it's just a zip of XML) to avoid that much heavier dependency chain.
+    implementation("org.apache.poi:poi:5.2.5")
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

@@ -26,6 +26,7 @@ import javax.inject.Inject
 data class OverviewUiState(
     val selectedMonth: YearMonth = YearMonth.now(),
     val availableMonths: List<YearMonth> = emptyList(),
+    val monthsWithData: Set<YearMonth> = emptySet(),
     val monthSummary: MonthSummary = MonthSummary(BigDecimal.ZERO, BigDecimal.ZERO),
     val categoryBreakdown: List<CategorySlice> = emptyList(),
     val dailySpend: List<DaySpend> = emptyList(),
@@ -60,6 +61,7 @@ class OverviewViewModel @Inject constructor(
         OverviewUiState(
             selectedMonth = month,
             availableMonths = months,
+            monthsWithData = monthsWithData.toSet(),
             monthSummary = FinanceCalculator.summaryForMonth(transactions, month, zone),
             categoryBreakdown = FinanceCalculator.categoryBreakdownForMonth(transactions, month, zone),
             dailySpend = FinanceCalculator.dailySpendForMonth(transactions, month, zone),

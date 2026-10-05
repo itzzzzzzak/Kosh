@@ -19,16 +19,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,12 +31,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.kosh.financetracker.core.finance.CategorySlice
-import dev.kosh.financetracker.ui.components.CalendarIcon
 import dev.kosh.financetracker.ui.components.CategoryIconTile
-import dev.kosh.financetracker.ui.components.ChevronDownIcon
 import dev.kosh.financetracker.ui.components.EmptyState
 import dev.kosh.financetracker.ui.components.KoshCard
 import dev.kosh.financetracker.ui.components.KoshWordmark
+import dev.kosh.financetracker.ui.components.MonthSelectorPill
 import dev.kosh.financetracker.ui.components.SpendTrendChart
 import dev.kosh.financetracker.ui.components.colorFor
 import dev.kosh.financetracker.ui.components.labelFor
@@ -50,8 +44,6 @@ import dev.kosh.financetracker.ui.theme.KoshColors
 import dev.kosh.financetracker.ui.theme.KoshExtendedTheme
 import dev.kosh.financetracker.ui.theme.Spacing
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -97,6 +89,7 @@ fun InsightsScreen(
                         InsightsHeader(
                             selectedMonth = state.selectedMonth,
                             availableMonths = state.availableMonths,
+                            monthsWithData = state.monthsWithData,
                             onSelectMonth = viewModel::selectMonth,
                         )
                         Spacer(Modifier.height(Spacing.lg))
@@ -145,10 +138,9 @@ fun InsightsScreen(
 private fun InsightsHeader(
     selectedMonth: YearMonth,
     availableMonths: List<YearMonth>,
+    monthsWithData: Set<YearMonth>,
     onSelectMonth: (YearMonth) -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -160,39 +152,14 @@ private fun InsightsHeader(
             Text("Spending", style = MaterialTheme.typography.titleLarge, color = KoshColors.PrimaryText)
         }
 
-        Box {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(KoshColors.RaisedGraphite.copy(alpha = 0.7f))
-                    .clickable { menuOpen = true }
-                    .padding(horizontal = Spacing.ms, vertical = Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CalendarIcon(tint = KoshColors.SecondaryText, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(Spacing.xs))
-                Text(monthLabel(selectedMonth), style = MaterialTheme.typography.bodyMedium, color = KoshColors.PrimaryText)
-                Spacer(Modifier.width(Spacing.xs))
-                ChevronDownIcon(tint = KoshColors.SecondaryText)
-            }
-
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                availableMonths.forEach { month ->
-                    DropdownMenuItem(
-                        text = { Text(monthLabel(month)) },
-                        onClick = {
-                            onSelectMonth(month)
-                            menuOpen = false
-                        },
-                    )
-                }
-            }
-        }
+        MonthSelectorPill(
+            selectedMonth = selectedMonth,
+            availableMonths = availableMonths,
+            monthsWithData = monthsWithData,
+            onSelectMonth = onSelectMonth,
+        )
     }
 }
-
-private fun monthLabel(month: YearMonth): String =
-    month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
 
 @Composable
 private fun SpendingSummary(expense: java.math.BigDecimal, percentChange: Float?) {

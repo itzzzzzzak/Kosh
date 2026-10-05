@@ -48,5 +48,6 @@ fun ParsedTransaction.toTransaction(sourceMessageId: String, rawSourceText: Stri
         confidence = confidence,
         notes = null,
         createdAt = now,
+        balanceAfter = balanceAfter,
     )
 }

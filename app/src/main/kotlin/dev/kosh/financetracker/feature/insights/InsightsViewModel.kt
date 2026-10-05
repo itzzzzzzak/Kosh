@@ -21,6 +21,7 @@ import javax.inject.Inject
 data class InsightsUiState(
     val selectedMonth: YearMonth = YearMonth.now(),
     val availableMonths: List<YearMonth> = emptyList(),
+    val monthsWithData: Set<YearMonth> = emptySet(),
     val monthSummary: MonthSummary = MonthSummary(BigDecimal.ZERO, BigDecimal.ZERO),
     val percentChangeVsPreviousMonth: Float? = null,
     val dailySpend: List<DaySpend> = emptyList(),
@@ -49,6 +50,7 @@ class InsightsViewModel @Inject constructor(
         InsightsUiState(
             selectedMonth = month,
             availableMonths = months,
+            monthsWithData = monthsWithData.toSet(),
             monthSummary = FinanceCalculator.summaryForMonth(transactions, month, zone),
             percentChangeVsPreviousMonth = FinanceCalculator.percentChangeVsPreviousMonth(transactions, month, zone),
             dailySpend = FinanceCalculator.dailySpendForMonth(transactions, month, zone),

@@ -55,8 +55,8 @@ fun AccountCard(summary: AccountSummary, amountsHidden: Boolean) {
 
     Box(
         modifier = Modifier
-            .width(240.dp)
-            .height(140.dp)
+            .width(260.dp)
+            .height(156.dp)
             .shadow(elevation = 12.dp, shape = shape, ambientColor = glowColor.copy(alpha = 0.55f), spotColor = glowColor.copy(alpha = 0.55f))
             .clip(shape)
             .background(
@@ -111,21 +111,39 @@ fun AccountCard(summary: AccountSummary, amountsHidden: Boolean) {
 
             Spacer(modifier = Modifier.weight(1f))
 
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(
+                        "↓ Debit",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = KoshColors.PrimaryText.copy(alpha = 0.75f),
+                    )
+                    Text(
+                        formatRupees(summary.monthDebit, amountsHidden),
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                        color = KoshColors.PrimaryText,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                    Text(
+                        "↑ Credit",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = KoshColors.PrimaryText.copy(alpha = 0.75f),
+                    )
+                    Text(
+                        formatRupees(summary.monthCredit, amountsHidden),
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                        color = KoshColors.PrimaryText,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(Spacing.xs))
             Text(
-                "This month",
+                "${summary.debitCount} debit · ${summary.creditCount} credit",
                 style = MaterialTheme.typography.labelSmall,
-                color = KoshColors.PrimaryText.copy(alpha = 0.75f),
-            )
-            Text(
-                formatRupees(summary.monthSpend, amountsHidden),
-                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                color = KoshColors.PrimaryText,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                if (summary.transactionCount == 1) "1 transaction" else "${summary.transactionCount} transactions",
-                style = MaterialTheme.typography.labelSmall,
-                color = KoshColors.PrimaryText.copy(alpha = 0.75f),
+                color = KoshColors.PrimaryText.copy(alpha = 0.7f),
             )
         }
     }

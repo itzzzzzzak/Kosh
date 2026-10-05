@@ -143,4 +143,24 @@ class FinanceCalculatorTest {
         assertEquals(BigDecimal("150.00"), summaries[1].monthSpend)
         assertEquals(2, summaries[1].transactionCount)
     }
+
+    @Test
+    fun `account summary separates debit and credit, including transfers as real account activity`() {
+        val withinMonth = ZonedDateTime.of(2026, 9, 15, 10, 0, 0, 0, zone).toInstant()
+        val transactions = listOf(
+            transaction(TransactionType.EXPENSE, "100.00", withinMonth, bank = "HDFC", accountSuffix = "5590"),
+            transaction(TransactionType.INCOME, "5000.00", withinMonth, bank = "HDFC", accountSuffix = "5590"),
+            // A transfer out is still a real debit on this specific account, even
+            // though it's excluded from whole-portfolio "spending".
+            transaction(TransactionType.TRANSFER, "200.00", withinMonth, bank = "HDFC", accountSuffix = "5590"),
+        )
+
+        val summaries = FinanceCalculator.accountSummariesForMonth(transactions, YearMonth.of(2026, 9), zone)
+
+        assertEquals(1, summaries.size)
+        assertEquals(BigDecimal("300.00"), summaries[0].monthDebit)
+        assertEquals(BigDecimal("5000.00"), summaries[0].monthCredit)
+        assertEquals(2, summaries[0].debitCount)
+        assertEquals(1, summaries[0].creditCount)
+    }
 }

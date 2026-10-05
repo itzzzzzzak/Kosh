@@ -2,6 +2,7 @@ package dev.kosh.financetracker.core.finance
 
 import dev.kosh.financetracker.core.model.Transaction
 import dev.kosh.financetracker.core.model.TransactionCategory
+import dev.kosh.financetracker.core.model.TransactionDirection
 import dev.kosh.financetracker.core.model.TransactionType
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -31,9 +32,15 @@ data class DaySpend(
 data class AccountSummary(
     val bank: String?,
     val accountSuffix: String,
-    val monthSpend: BigDecimal,
-    val transactionCount: Int,
-)
+    val monthDebit: BigDecimal,
+    val monthCredit: BigDecimal,
+    val debitCount: Int,
+    val creditCount: Int,
+) {
+    /** Kept for call sites that only care about outgoing spend. */
+    val monthSpend: BigDecimal get() = monthDebit
+    val transactionCount: Int get() = debitCount + creditCount
+}
 
 /**
  * Deliberately minimal: only sums TransactionType.INCOME and .EXPENSE. Once the
@@ -154,34 +161,55 @@ object FinanceCalculator {
         return totalsByDay.map { (date, amount) -> DaySpend(date, amount) }
     }
 
-    /** Real per-account spend for the month — grouped by the (bank, masked account
-     * suffix) pair actually parsed off each SMS. Only accounts with a known suffix
-     * are included; a null/unknown account can't be attributed honestly. */
+    /** Real per-account debit/credit activity for the month — grouped by the (bank,
+     * masked account suffix) pair actually parsed off each SMS. This reflects true
+     * account cash movement (every DEBIT and every CREDIT, like a bank statement
+     * would show), not just the curated "spending" subset — a transfer to another
+     * of the user's own accounts is still real money leaving this one. Only
+     * accounts with a known suffix are included; a null/unknown account can't be
+     * attributed honestly. */
     fun accountSummariesForMonth(
         transactions: List<Transaction>,
         month: YearMonth,
         zone: ZoneId = ZoneId.systemDefault(),
     ): List<AccountSummary> {
         data class Key(val bank: String?, val accountSuffix: String)
+        data class Totals(
+            var debit: BigDecimal = BigDecimal.ZERO,
+            var credit: BigDecimal = BigDecimal.ZERO,
+            var debitCount: Int = 0,
+            var creditCount: Int = 0,
+        )
 
-        val totalsByAccount = linkedMapOf<Key, Pair<BigDecimal, Int>>()
+        val totalsByAccount = linkedMapOf<Key, Totals>()
         for (transaction in transactions) {
-            if (transaction.type != TransactionType.EXPENSE) continue
             if (YearMonth.from(transaction.timestamp.atZone(zone)) != month) continue
             val suffix = transaction.accountSuffix ?: continue
             val key = Key(transaction.bank, suffix)
-            val (sum, count) = totalsByAccount[key] ?: (BigDecimal.ZERO to 0)
-            totalsByAccount[key] = (sum + transaction.amount) to (count + 1)
+            val totals = totalsByAccount.getOrPut(key) { Totals() }
+            when (transaction.direction) {
+                TransactionDirection.DEBIT -> {
+                    totals.debit += transaction.amount
+                    totals.debitCount++
+                }
+                TransactionDirection.CREDIT -> {
+                    totals.credit += transaction.amount
+                    totals.creditCount++
+                }
+                TransactionDirection.UNKNOWN -> Unit
+            }
         }
 
         return totalsByAccount.entries
-            .sortedByDescending { it.value.first }
-            .map { (key, sumAndCount) ->
+            .sortedByDescending { it.value.debit }
+            .map { (key, totals) ->
                 AccountSummary(
                     bank = key.bank,
                     accountSuffix = key.accountSuffix,
-                    monthSpend = sumAndCount.first,
-                    transactionCount = sumAndCount.second,
+                    monthDebit = totals.debit,
+                    monthCredit = totals.credit,
+                    debitCount = totals.debitCount,
+                    creditCount = totals.creditCount,
                 )
             }
     }

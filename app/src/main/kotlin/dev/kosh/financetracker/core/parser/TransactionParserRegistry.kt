@@ -13,6 +13,7 @@ class TransactionParserRegistry @Inject constructor() {
     private val parsers: List<TransactionParser> = listOf(
         HdfcParser(),
         KotakParser(),
+        SliceParser(),
         GenericUpiParser(),
     )
 

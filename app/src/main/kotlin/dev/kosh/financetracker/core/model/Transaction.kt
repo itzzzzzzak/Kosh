@@ -64,6 +64,10 @@ enum class TransactionSource {
     SMS,
     NOTIFICATION,
     MANUAL,
+    /** Imported from a bank-issued statement file (CSV/Excel) rather than parsed
+     * from a message — treated as ground truth for the account+month it covers,
+     * superseding whatever SMS parsing produced for that same window. */
+    STATEMENT,
 }
 
 data class Transaction(
@@ -92,4 +96,8 @@ data class Transaction(
     val confidence: Double,
     val notes: String?,
     val createdAt: Instant,
+    /** Running account balance immediately after this transaction, when the source
+     * provides one (bank statements always do; SMS sometimes does). Powers real
+     * balance tracking over time instead of just transaction totals. */
+    val balanceAfter: BigDecimal? = null,
 )

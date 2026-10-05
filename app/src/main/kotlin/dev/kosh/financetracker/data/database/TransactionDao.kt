@@ -37,4 +37,20 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
     suspend fun getByIdOnce(id: Long): TransactionEntity?
+
+    /** Matches by [accountSuffix] alone, not bank — a statement import is the
+     * authoritative record for that account+period regardless of what a prior SMS
+     * parse guessed the bank was (this also naturally cleans up old rows the
+     * generic UPI fallback parsed with no bank attribution). */
+    @Query(
+        "SELECT COUNT(*) FROM transactions WHERE accountSuffix = :accountSuffix " +
+            "AND timestampEpochMillis BETWEEN :startMillis AND :endMillis",
+    )
+    suspend fun countForAccountInRange(accountSuffix: String, startMillis: Long, endMillis: Long): Int
+
+    @Query(
+        "DELETE FROM transactions WHERE accountSuffix = :accountSuffix " +
+            "AND timestampEpochMillis BETWEEN :startMillis AND :endMillis",
+    )
+    suspend fun deleteForAccountInRange(accountSuffix: String, startMillis: Long, endMillis: Long)
 }

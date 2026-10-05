@@ -25,12 +25,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,12 +58,15 @@ import dev.kosh.financetracker.core.finance.DaySpend
 import dev.kosh.financetracker.core.finance.MonthSummary
 import dev.kosh.financetracker.core.model.Transaction
 import dev.kosh.financetracker.core.model.TransactionDirection
+import dev.kosh.financetracker.core.model.TransactionType
+import dev.kosh.financetracker.feature.importstatement.StatementImportDialog
+import dev.kosh.financetracker.feature.importstatement.StatementImportViewModel
 import dev.kosh.financetracker.ui.components.AccountCard
-import dev.kosh.financetracker.ui.components.CalendarIcon
-import dev.kosh.financetracker.ui.components.KoshCard
 import dev.kosh.financetracker.ui.components.CategoryIconTile
-import dev.kosh.financetracker.ui.components.ChevronDownIcon
+import dev.kosh.financetracker.ui.components.ImportIcon
+import dev.kosh.financetracker.ui.components.KoshCard
 import dev.kosh.financetracker.ui.components.KoshWordmark
+import dev.kosh.financetracker.ui.components.MonthSelectorPill
 import dev.kosh.financetracker.ui.components.SpendSparkline
 import dev.kosh.financetracker.ui.components.VisibilityToggle
 import dev.kosh.financetracker.ui.format.formatRupees
@@ -84,11 +86,22 @@ fun OverviewScreen(
     onSeeAllActivity: () -> Unit,
     onOpenInsights: () -> Unit,
     viewModel: OverviewViewModel = hiltViewModel(),
+    importViewModel: StatementImportViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     val syncState by viewModel.syncState.collectAsState()
+    val importState by importViewModel.uiState.collectAsState()
     var amountsHidden by remember { mutableStateOf(false) }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val fileName = queryDisplayName(context, uri) ?: uri.lastPathSegment ?: "statement"
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        if (bytes != null) importViewModel.onFileSelected(fileName, bytes)
+    }
 
     fun hasAllSmsPermissions(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) ==
@@ -133,10 +146,28 @@ fun OverviewScreen(
                 onOpenReview = onOpenReview,
                 onSeeAllActivity = onSeeAllActivity,
                 onOpenInsights = onOpenInsights,
+                onImportClick = {
+                    filePickerLauncher.launch(
+                        arrayOf(
+                            "text/csv",
+                            "text/comma-separated-values",
+                            "application/vnd.ms-excel",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            "*/*",
+                        ),
+                    )
+                },
             )
         }
+
+        StatementImportDialog(state = importState, onConfirm = importViewModel::confirmImport, onDismiss = importViewModel::dismiss)
     }
 }
+
+private fun queryDisplayName(context: android.content.Context, uri: android.net.Uri): String? =
+    context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
+    }
 
 @Composable
 private fun PermissionGate(onGrant: () -> Unit) {
@@ -211,6 +242,7 @@ private fun HomeContent(
     onOpenReview: () -> Unit,
     onSeeAllActivity: () -> Unit,
     onOpenInsights: () -> Unit,
+    onImportClick: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -227,7 +259,9 @@ private fun HomeContent(
                     HomeHeader(
                         selectedMonth = state.selectedMonth,
                         availableMonths = state.availableMonths,
+                        monthsWithData = state.monthsWithData,
                         onSelectMonth = onSelectMonth,
+                        onImportClick = onImportClick,
                     )
                     Spacer(Modifier.height(Spacing.lg))
                     SpendingHero(
@@ -338,10 +372,10 @@ private fun WarmHero(content: @Composable () -> Unit) {
 private fun HomeHeader(
     selectedMonth: YearMonth,
     availableMonths: List<YearMonth>,
+    monthsWithData: Set<YearMonth>,
     onSelectMonth: (YearMonth) -> Unit,
+    onImportClick: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -349,34 +383,25 @@ private fun HomeHeader(
     ) {
         KoshWordmark()
 
-        Box {
-            Row(
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
+                    .size(36.dp)
+                    .clip(CircleShape)
                     .background(KoshColors.RaisedGraphite.copy(alpha = 0.7f))
-                    .clickable { menuOpen = true }
-                    .padding(horizontal = Spacing.ms, vertical = Spacing.sm)
-                    .semantics { contentDescription = "Selected month: ${monthLabel(selectedMonth)}. Tap to change." },
-                verticalAlignment = Alignment.CenterVertically,
+                    .clickable(onClick = onImportClick)
+                    .semantics { contentDescription = "Import bank statement" },
+                contentAlignment = Alignment.Center,
             ) {
-                CalendarIcon(tint = KoshColors.SecondaryText, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(Spacing.xs))
-                Text(monthLabel(selectedMonth), style = MaterialTheme.typography.bodyMedium, color = KoshColors.PrimaryText)
-                Spacer(Modifier.width(Spacing.xs))
-                ChevronDownIcon(tint = KoshColors.SecondaryText)
+                ImportIcon(tint = KoshColors.SecondaryText)
             }
 
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                availableMonths.forEach { month ->
-                    DropdownMenuItem(
-                        text = { Text(monthLabel(month)) },
-                        onClick = {
-                            onSelectMonth(month)
-                            menuOpen = false
-                        },
-                    )
-                }
-            }
+            MonthSelectorPill(
+                selectedMonth = selectedMonth,
+                availableMonths = availableMonths,
+                monthsWithData = monthsWithData,
+                onSelectMonth = onSelectMonth,
+            )
         }
     }
 }
@@ -443,6 +468,14 @@ private fun IncomeSpendingPanel(summary: MonthSummary, amountsHidden: Boolean) {
                     fraction = (summary.income.toFloat() / maxValue.toFloat()).coerceIn(0f, 1f),
                     color = KoshExtendedTheme.colors.comparison,
                 )
+                if (summary.income.compareTo(BigDecimal.ZERO) == 0) {
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        "No salary credit found this month",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = KoshColors.SecondaryText,
+                    )
+                }
             }
             Spacer(Modifier.width(Spacing.lg))
             Column(modifier = Modifier.weight(1f)) {
@@ -549,18 +582,28 @@ private fun RecentActivityRow(transaction: Transaction, amountsHidden: Boolean, 
         Column(modifier = Modifier.weight(1f)) {
             Text(transaction.merchant ?: "Unknown", style = MaterialTheme.typography.bodyLarge, color = KoshColors.PrimaryText)
             Text(
-                transaction.timestamp.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, yyyy")),
+                if (transaction.type == TransactionType.TRANSFER) {
+                    "Transfer · Excluded from spending"
+                } else {
+                    transaction.timestamp.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+                },
                 style = MaterialTheme.typography.labelMedium,
-                color = KoshColors.SecondaryText,
+                color = if (transaction.type == TransactionType.TRANSFER) KoshExtendedTheme.colors.comparison else KoshColors.SecondaryText,
             )
         }
+        val isTransfer = transaction.type == TransactionType.TRANSFER
         val isExpense = transaction.direction == TransactionDirection.DEBIT
-        val sign = if (amountsHidden) "" else if (isExpense) "-" else "+"
+        val sign = if (amountsHidden || isTransfer) "" else if (isExpense) "-" else "+"
+        val amountColor = when {
+            isTransfer -> KoshColors.SecondaryText
+            isExpense -> KoshExtendedTheme.colors.expense
+            else -> KoshExtendedTheme.colors.income
+        }
         Text(
             "$sign${formatRupees(transaction.amount, amountsHidden)}",
             style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
             fontWeight = FontWeight.SemiBold,
-            color = if (isExpense) KoshExtendedTheme.colors.expense else KoshExtendedTheme.colors.income,
+            color = amountColor,
         )
     }
 }
