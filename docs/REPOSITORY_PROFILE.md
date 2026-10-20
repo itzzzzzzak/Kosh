@@ -29,5 +29,5 @@ local-first
 - Keep the repository name Kosh.
 - Do not add a homepage until a project website exists.
 - Do not create a release tag until a validated release is ready.
-- Do not add a license without selecting its terms.
+- Project source is licensed under MIT; see the root LICENSE file.
 - Screenshots should come from the real app with synthetic data.

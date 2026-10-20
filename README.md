@@ -9,6 +9,7 @@ A native Android personal finance tracker for Indian bank SMS and statements.
 ![Platform: Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
 ![Language: Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-7F52FF?logo=kotlin&logoColor=white)
 ![UI: Jetpack Compose](https://img.shields.io/badge/UI-Jetpack_Compose-4285F4)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Status: Early development](https://img.shields.io/badge/status-early_development-D4AF37)
 
 </div>
@@ -135,4 +136,6 @@ For vulnerabilities or financial-data exposure, follow [SECURITY.md](SECURITY.md
 
 ## License
 
-A project license has not been selected or added. Public source availability does not itself grant an open-source license.
+Kosh is licensed under the [MIT License](LICENSE).
+
+Third-party dependencies retain their respective licenses.
