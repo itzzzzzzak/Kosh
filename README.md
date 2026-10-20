@@ -15,7 +15,7 @@ A native Android personal finance tracker for Indian bank SMS and statements.
 
 Kosh turns financial messages into a searchable transaction history, monthly spending summaries, and a queue for reviewing categories. Parsing, categorization, and storage happen on the device, without an account or cloud finance backend.
 
-> **Development status:** The Android implementation is currently on [`feature/phase-1-foundation`](https://github.com/itzzzzzzak/Kosh/tree/feature/phase-1-foundation) in [PR #1](https://github.com/itzzzzzzak/Kosh/pull/1). It has not been merged into `main`. This README describes that implementation. It is an experimental app; classification and reconciliation remain incomplete.
+> **Development status:** Early development. The Android implementation is on `main` following [PR #1](https://github.com/itzzzzzzak/Kosh/pull/1). Classification and reconciliation remain incomplete; the known import issues below are unresolved.
 
 ## What Kosh does
 
@@ -61,12 +61,11 @@ Keep real SMS, statements, account details, database exports, and signing creden
 
 ### Get the implementation
 
-Until PR #1 is merged, check out the implementation branch explicitly:
+Clone the repository and use the default `main` branch:
 
 ```bash
 git clone https://github.com/itzzzzzzak/Kosh.git
 cd Kosh
-git switch feature/phase-1-foundation
 ```
 
 Open the project in Android Studio, let Gradle sync, and run the `app` configuration. Android Studio can configure the SDK path in the untracked `local.properties` file.
