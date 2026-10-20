@@ -1,6 +1,6 @@
 # Kosh engineering roadmap
 
-This roadmap is based on the implementation at `1d4fab6` on `feature/phase-1-foundation`. It distinguishes existing code from work still required. Items below are priorities, not completed milestones.
+This roadmap tracks the implementation on `main` and its import-integrity fixes. It distinguishes existing code from work still required.
 
 ## Existing implementation
 
@@ -17,12 +17,12 @@ These checkboxes mean code exists; they do not imply current build validation or
 
 ## 1. Establish a trustworthy baseline
 
-- [ ] Add CI for unit tests, lint, and the Android debug build.
-- [ ] Validate the exact PR head before merging.
-- [ ] Add database integration tests for statement replacement, rollback, and cancellation.
-- [ ] Make statement replacement atomic.
-- [ ] Scope account matching to bank plus account identity; handle suffix collisions explicitly.
-- [ ] Prevent statement rows with missing or repeated references from overwriting one another.
+- [x] Add CI for unit tests, lint, and the Android debug build.
+- [x] Add Room database tests for statement replacement, rollback, and cancellation.
+- [x] Make statement replacement and reconciliation atomic across all imported accounts.
+- [x] Scope replacement to bank plus account suffix; preserve unknown-bank rows.
+- [x] Prevent statement rows with missing or repeated references from overwriting one another.
+- [ ] Model full account identity to distinguish accounts at the same bank with identical suffixes.
 - [ ] Harden malformed-file handling, XML parsing, decompression limits, and UI error recovery.
 
 ## 2. Make financial totals dependable

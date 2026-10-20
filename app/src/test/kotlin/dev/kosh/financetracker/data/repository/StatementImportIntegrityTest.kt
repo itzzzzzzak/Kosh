@@ -8,6 +8,9 @@ import dev.kosh.financetracker.core.model.TransactionSource
 import dev.kosh.financetracker.core.statement.StatementTransaction
 import dev.kosh.financetracker.core.statement.toTransaction
 import dev.kosh.financetracker.data.database.FinanceDatabase
+import dev.kosh.financetracker.data.database.TransactionDao
+import dev.kosh.financetracker.data.database.TransactionEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -29,7 +32,7 @@ class StatementImportIntegrityTest {
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(), FinanceDatabase::class.java,
         ).build()
-        repository = RoomTransactionRepository(database.transactionDao(), database.merchantCategoryMappingDao())
+        repository = RoomTransactionRepository(database.transactionDao(), database.merchantCategoryMappingDao(), database)
     }
 
     @After fun tearDown() { database.close() }
@@ -89,7 +92,7 @@ class StatementImportIntegrityTest {
         assertEquals(3, first.size)
         assertEquals(3, first.map { it.sourceMessageId }.distinct().size)
 
-        repository.importStatement(rows)
+        repository.importStatement(rows.reversed())
         val second = database.transactionDao().getAll()
         assertEquals(3, second.size)
         assertEquals(first.map { it.sourceMessageId }.toSet(), second.map { it.sourceMessageId }.toSet())
@@ -106,5 +109,67 @@ class StatementImportIntegrityTest {
         repository.save(outside.toTransaction())
         repository.importStatement(listOf(row()))
         assertEquals(setOf("NEW", "OUTSIDE"), database.transactionDao().getAll().map { it.rawMerchant }.toSet())
+    }
+
+    @Test fun `cancellation after insert restores the original account data`() = runBlocking {
+        repository.save(row(description = "ORIGINAL").toTransaction())
+        val dao = database.transactionDao()
+        val cancellingDao = object : TransactionDao by dao {
+            override suspend fun insertStatementRows(transactions: List<TransactionEntity>) {
+                dao.insertStatementRows(transactions)
+                throw CancellationException("cancelled during import")
+            }
+        }
+        val cancellingRepository = RoomTransactionRepository(cancellingDao, database.merchantCategoryMappingDao(), database)
+
+        val result = runCatching { cancellingRepository.importStatement(listOf(row())) }
+
+        assertTrue(result.exceptionOrNull() is CancellationException)
+        assertEquals(listOf("ORIGINAL"), dao.getAll().map { it.rawMerchant })
+    }
+
+    @Test fun `bank case differences still replace the same account`() = runBlocking {
+        repository.save(row(bank = "hdfc", description = "ORIGINAL").toTransaction())
+        val result = repository.importStatement(listOf(row(bank = " HDFC ")))
+        assertEquals(1, result.single().replacedCount)
+        assertEquals(listOf("NEW"), database.transactionDao().getAll().map { it.rawMerchant })
+    }
+
+    @Test fun `invalid bank identity is rejected before any deletion`() = runBlocking {
+        repository.save(row(description = "ORIGINAL").toTransaction())
+        val result = runCatching { repository.importStatement(listOf(row(), row(bank = " "))) }
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertEquals(listOf("ORIGINAL"), database.transactionDao().getAll().map { it.rawMerchant })
+    }
+
+    @Test fun `repeated reference numbers do not overwrite distinct rows`() = runBlocking {
+        repository.importStatement(listOf(row(reference = "REF"), row(description = "OTHER", reference = "REF")))
+        assertEquals(2, database.transactionDao().getAll().size)
+    }
+
+    @Test fun `empty import leaves existing data alone`() = runBlocking {
+        repository.save(row(description = "ORIGINAL").toTransaction())
+        assertTrue(repository.importStatement(emptyList()).isEmpty())
+        assertEquals(listOf("ORIGINAL"), database.transactionDao().getAll().map { it.rawMerchant })
+    }
+
+    @Test fun `reconciliation failure rolls back the replacement too`() = runBlocking {
+        repository.save(row(description = "ORIGINAL").toTransaction())
+        val dao = database.transactionDao()
+        val failingDao = object : TransactionDao by dao {
+            override suspend fun updateType(ids: List<Long>, type: dev.kosh.financetracker.core.model.TransactionType) {
+                error("forced reconciliation failure")
+            }
+        }
+        val failingRepository = RoomTransactionRepository(failingDao, database.merchantCategoryMappingDao(), database)
+        val result = runCatching {
+            failingRepository.importStatement(
+                listOf(row(), row(bank = "Kotak").copy(
+                    accountSuffix = "5678", direction = TransactionDirection.CREDIT,
+                )),
+            )
+        }
+        assertTrue(result.isFailure)
+        assertEquals(listOf("ORIGINAL"), dao.getAll().map { it.rawMerchant })
     }
 }

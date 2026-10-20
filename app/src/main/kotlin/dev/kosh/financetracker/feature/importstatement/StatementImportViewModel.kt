@@ -8,6 +8,7 @@ import dev.kosh.financetracker.core.statement.StatementParserRegistry
 import dev.kosh.financetracker.core.statement.StatementTransaction
 import dev.kosh.financetracker.data.repository.TransactionRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,7 +47,14 @@ class StatementImportViewModel @Inject constructor(
     fun onFileSelected(fileName: String, bytes: ByteArray) {
         _uiState.value = StatementImportUiState.Parsing
         viewModelScope.launch {
-            val rows = withContext(Dispatchers.Default) { registry.parse(fileName, bytes) }
+            val rows = try {
+                withContext(Dispatchers.Default) { registry.parse(fileName, bytes) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _uiState.value = StatementImportUiState.Error("Couldn't read this statement. Check the file and try again.")
+                return@launch
+            }
             if (rows.isEmpty()) {
                 _uiState.value = StatementImportUiState.Error(
                     "Couldn't recognize \"$fileName\" as a supported bank statement (HDFC, Kotak, or Slice).",
@@ -54,11 +62,14 @@ class StatementImportViewModel @Inject constructor(
                 return@launch
             }
 
-            // A statement covers one account; take the first group if a file
-            // somehow mixed accounts (not expected from any real export).
+            // Reject ambiguous input rather than silently dropping another account.
+            val accounts = rows.map { it.bank.trim().lowercase(java.util.Locale.ROOT) to it.accountSuffix.trim() }.distinct()
+            if (accounts.size != 1) {
+                _uiState.value = StatementImportUiState.Error("Select a statement for one bank account at a time.")
+                return@launch
+            }
             val accountSuffix = rows.first().accountSuffix
-            val accountRows = rows.filter { it.accountSuffix == accountSuffix }
-            val sorted = accountRows.sortedBy { it.timestamp }
+            val sorted = rows.sortedBy { it.timestamp }
 
             _uiState.value = StatementImportUiState.Confirming(
                 fileName = fileName,
@@ -75,8 +86,16 @@ class StatementImportViewModel @Inject constructor(
         val current = _uiState.value as? StatementImportUiState.Confirming ?: return
         _uiState.value = StatementImportUiState.Importing
         viewModelScope.launch {
-            val results = repository.importStatement(current.rows())
-            _uiState.value = StatementImportUiState.Done(results)
+            try {
+                val results = repository.importStatement(current.rows())
+                _uiState.value = StatementImportUiState.Done(results)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _uiState.value = StatementImportUiState.Error(
+                    "Import failed. Your existing transactions were kept. Please try again.",
+                )
+            }
         }
     }
 

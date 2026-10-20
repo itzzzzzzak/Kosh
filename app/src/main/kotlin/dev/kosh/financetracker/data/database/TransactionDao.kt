@@ -17,6 +17,11 @@ interface TransactionDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIfNew(transaction: TransactionEntity): Long
 
+    // A collision during a statement replacement must fail the transaction,
+    // never silently replace a different stored record.
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertStatementRows(transactions: List<TransactionEntity>)
+
     @Query("SELECT * FROM transactions ORDER BY timestampEpochMillis DESC")
     fun observeAll(): Flow<List<TransactionEntity>>
 
@@ -38,19 +43,19 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
     suspend fun getByIdOnce(id: Long): TransactionEntity?
 
-    /** Matches by [accountSuffix] alone, not bank — a statement import is the
-     * authoritative record for that account+period regardless of what a prior SMS
-     * parse guessed the bank was (this also naturally cleans up old rows the
-     * generic UPI fallback parsed with no bank attribution). */
+    /** Unknown-bank rows are deliberately preserved: a suffix alone cannot
+     * establish account ownership, even if that leaves an unresolved duplicate. */
     @Query(
         "SELECT COUNT(*) FROM transactions WHERE accountSuffix = :accountSuffix " +
+            "AND LOWER(TRIM(bank)) = LOWER(TRIM(:bank)) " +
             "AND timestampEpochMillis BETWEEN :startMillis AND :endMillis",
     )
-    suspend fun countForAccountInRange(accountSuffix: String, startMillis: Long, endMillis: Long): Int
+    suspend fun countForAccountInRange(bank: String, accountSuffix: String, startMillis: Long, endMillis: Long): Int
 
     @Query(
         "DELETE FROM transactions WHERE accountSuffix = :accountSuffix " +
+            "AND LOWER(TRIM(bank)) = LOWER(TRIM(:bank)) " +
             "AND timestampEpochMillis BETWEEN :startMillis AND :endMillis",
     )
-    suspend fun deleteForAccountInRange(accountSuffix: String, startMillis: Long, endMillis: Long)
+    suspend fun deleteForAccountInRange(bank: String, accountSuffix: String, startMillis: Long, endMillis: Long)
 }
