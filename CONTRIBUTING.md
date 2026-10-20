@@ -1,11 +1,11 @@
 # Contributing to Kosh
 
-Kosh is a native Android app in early development. The implementation currently lives on `feature/phase-1-foundation` in PR #1; check that branch and open pull requests before starting overlapping work.
+Kosh is a native Android app in early development. The implementation is on `main`; check open pull requests before starting overlapping work.
 
 ## Development workflow
 
 1. Read the README and [roadmap](docs/ROADMAP.md).
-2. Branch from the current implementation branch until it is merged into main.
+2. Create a feature branch from the latest `main`.
 3. Make a focused change with a clear user-visible outcome.
 4. For behavior changes, add a regression test that fails before the fix.
 5. Run the relevant unit tests, Android lint, and debug build.
