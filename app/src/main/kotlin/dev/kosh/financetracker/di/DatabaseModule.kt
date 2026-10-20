@@ -38,5 +38,6 @@ object DatabaseModule {
     fun provideTransactionRepository(
         dao: TransactionDao,
         merchantCategoryMappingDao: MerchantCategoryMappingDao,
-    ): TransactionRepository = RoomTransactionRepository(dao, merchantCategoryMappingDao)
+        database: FinanceDatabase,
+    ): TransactionRepository = RoomTransactionRepository(dao, merchantCategoryMappingDao, database)
 }

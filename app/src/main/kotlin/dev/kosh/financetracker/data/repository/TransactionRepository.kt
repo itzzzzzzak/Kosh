@@ -1,5 +1,6 @@
 package dev.kosh.financetracker.data.repository
 
+import androidx.room.withTransaction
 import dev.kosh.financetracker.core.categorization.CategoryEngine
 import dev.kosh.financetracker.core.classifier.IncomeClassifier
 import dev.kosh.financetracker.core.finance.TransferDetector
@@ -11,6 +12,7 @@ import dev.kosh.financetracker.core.statement.StatementImportResult
 import dev.kosh.financetracker.core.statement.StatementTransaction
 import dev.kosh.financetracker.core.statement.toTransaction
 import dev.kosh.financetracker.data.database.MerchantCategoryMappingDao
+import dev.kosh.financetracker.data.database.FinanceDatabase
 import dev.kosh.financetracker.data.database.MerchantCategoryMappingEntity
 import dev.kosh.financetracker.data.database.TransactionDao
 import dev.kosh.financetracker.data.database.toDomain
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Locale
 import javax.inject.Inject
 
 interface TransactionRepository {
@@ -47,10 +50,10 @@ interface TransactionRepository {
     suspend fun setCategory(id: Long, category: TransactionCategory)
 
     /** Imports parsed statement rows as the ground truth for the account+period
-     * they cover — every existing transaction for that account (by suffix, any
+     * they cover — every existing transaction for that bank and account (any
      * source) within the statement's date range is deleted and replaced. One
-     * result per distinct account suffix found in [transactions] (normally one,
-     * since a bank statement covers a single account). */
+     * result per bank/account pair. Replacement and reconciliation commit together
+     * or roll back together on failure or cancellation. Unknown-bank rows survive. */
     suspend fun importStatement(transactions: List<StatementTransaction>): List<StatementImportResult.Imported>
 }
 
@@ -60,6 +63,7 @@ private fun normalizeMerchant(merchant: String?): String? =
 class RoomTransactionRepository @Inject constructor(
     private val dao: TransactionDao,
     private val merchantCategoryMappingDao: MerchantCategoryMappingDao,
+    private val database: FinanceDatabase,
 ) : TransactionRepository {
 
     override fun observeTransactions(): Flow<List<Transaction>> =
@@ -150,32 +154,50 @@ class RoomTransactionRepository @Inject constructor(
     }
 
     override suspend fun importStatement(transactions: List<StatementTransaction>): List<StatementImportResult.Imported> {
-        val zone = ZoneId.systemDefault()
-        val results = mutableListOf<StatementImportResult.Imported>()
-
-        for ((accountSuffix, rows) in transactions.groupBy { it.accountSuffix }) {
-            val periodStart = rows.minOf { it.timestamp }.atZone(zone).toLocalDate()
-            val periodEnd = rows.maxOf { it.timestamp }.atZone(zone).toLocalDate()
-            val startMillis = periodStart.atStartOfDay(zone).toInstant().toEpochMilli()
-            val endMillis = periodEnd.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
-
-            val replacedCount = dao.countForAccountInRange(accountSuffix, startMillis, endMillis)
-            dao.deleteForAccountInRange(accountSuffix, startMillis, endMillis)
-            rows.forEach { dao.insert(it.toTransaction().toEntity()) }
-
-            results += StatementImportResult.Imported(
-                bank = rows.first().bank,
-                accountSuffix = accountSuffix,
-                importedCount = rows.size,
-                replacedCount = replacedCount,
-                periodStart = periodStart,
-                periodEnd = periodEnd,
-            )
+        if (transactions.isEmpty()) return emptyList()
+        require(transactions.all { it.bank.isNotBlank() && it.accountSuffix.isNotBlank() }) {
+            "Statement rows must identify a bank and account"
         }
+        val zone = ZoneId.systemDefault()
+        return database.withTransaction {
+            val results = mutableListOf<StatementImportResult.Imported>()
 
-        reconcileTransfers()
-        reconcileCategories()
-        reconcileIncomeClassification()
-        return results
+            val accounts = transactions.groupBy { it.bank.trim().lowercase(Locale.ROOT) to it.accountSuffix.trim() }
+            for ((account, rows) in accounts) {
+                val (bank, accountSuffix) = account
+                val periodStart = rows.minOf { it.timestamp }.atZone(zone).toLocalDate()
+                val periodEnd = rows.maxOf { it.timestamp }.atZone(zone).toLocalDate()
+                val startMillis = periodStart.atStartOfDay(zone).toInstant().toEpochMilli()
+                val endMillis = periodEnd.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+
+                val replacedCount = dao.countForAccountInRange(bank, accountSuffix, startMillis, endMillis)
+                // Exact duplicate rows can be legitimate. Keep their multiplicity,
+                // while deriving the same set of identifiers on a repeated import.
+                val occurrences = mutableMapOf<String, Int>()
+                val entities = rows.map { row ->
+                    val transaction = row.toTransaction()
+                    val key = requireNotNull(transaction.sourceMessageId)
+                    val occurrence = occurrences.getOrDefault(key, 0)
+                    occurrences[key] = occurrence + 1
+                    transaction.copy(sourceMessageId = "$key:$occurrence").toEntity()
+                }
+                dao.deleteForAccountInRange(bank, accountSuffix, startMillis, endMillis)
+                dao.insertStatementRows(entities)
+
+                results += StatementImportResult.Imported(
+                    bank = rows.first().bank.trim(),
+                    accountSuffix = accountSuffix,
+                    importedCount = rows.size,
+                    replacedCount = replacedCount,
+                    periodStart = periodStart,
+                    periodEnd = periodEnd,
+                )
+            }
+
+            reconcileTransfers()
+            reconcileCategories()
+            reconcileIncomeClassification()
+            results
+        }
     }
 }

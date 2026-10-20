@@ -8,6 +8,21 @@ import dev.kosh.financetracker.core.model.TransactionDirection
 import dev.kosh.financetracker.core.model.TransactionSource
 import dev.kosh.financetracker.core.model.TransactionType
 import java.time.Instant
+import java.security.MessageDigest
+import java.util.Locale
+
+/** Include the complete row identity: date-only timestamps and reference numbers
+ * alone are not unique. Length prefixes avoid ambiguous field concatenation. */
+private fun StatementTransaction.sourceId(): String {
+    val fields = listOf(
+        bank.trim().lowercase(Locale.ROOT), accountSuffix.trim(), timestamp.toString(),
+        amount.stripTrailingZeros().toPlainString(), direction.name, description,
+        referenceNo.orEmpty(), balanceAfter?.stripTrailingZeros()?.toPlainString().orEmpty(),
+    )
+    val input = fields.joinToString("") { "${it.length}:$it" }
+    val digest = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+    return "statement:" + digest.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+}
 
 // Bank narrations starting with "UPI" follow one of several shapes, confirmed
 // against real exports:
@@ -60,11 +75,11 @@ fun StatementTransaction.toTransaction(): Transaction {
         merchant = merchant,
         rawMerchant = merchant,
         accountId = null,
-        accountSuffix = accountSuffix,
-        bank = bank,
+        accountSuffix = accountSuffix.trim(),
+        bank = bank.trim(),
         paymentMethod = if (description.contains("UPI", ignoreCase = true)) PaymentMethod.UPI else PaymentMethod.UNKNOWN,
         source = TransactionSource.STATEMENT,
-        sourceMessageId = "statement:$bank:$accountSuffix:${referenceNo ?: timestamp.toEpochMilli()}",
+        sourceMessageId = sourceId(),
         rawSourceText = description,
         confidence = 1.0,
         notes = null,

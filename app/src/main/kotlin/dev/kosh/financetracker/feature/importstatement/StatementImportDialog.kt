@@ -56,7 +56,7 @@ fun StatementImportDialog(
                     Spacer(Modifier.height(Spacing.sm))
                     Text(
                         "${state.count} transactions found. This will replace any existing data for this " +
-                            "account over that period — the statement becomes the source of truth for it.",
+                            "bank and account over that period. Records with an unknown bank are kept.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = KoshColors.SecondaryText,
                     )

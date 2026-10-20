@@ -15,7 +15,7 @@ A native Android personal finance tracker for Indian bank SMS and statements.
 
 Kosh turns financial messages into a searchable transaction history, monthly spending summaries, and a queue for reviewing categories. Parsing, categorization, and storage happen on the device, without an account or cloud finance backend.
 
-> **Development status:** Early development. The Android implementation is on `main` following [PR #1](https://github.com/itzzzzzzak/Kosh/pull/1). Classification and reconciliation remain incomplete; the known import issues below are unresolved.
+> **Development status:** Early development. Classification and reconciliation remain incomplete. Statement replacement is atomic and scoped to bank plus account suffix; broader account identity and cross-source reconciliation still need work.
 
 ## What Kosh does
 
@@ -116,14 +116,14 @@ Money is represented using `BigDecimal`. SMS source identifiers support idempote
 
 ## Known limitations
 
-- **Statement import needs hardening:** replacement is not atomic and account matching uses suffixes without bank identity. Avoid importing valuable data until these issues are resolved.
+- **Statement import boundaries:** replacement and reconciliation run in one database transaction. Only records with a matching bank and account suffix in the imported date range are replaced. Records without a known bank are preserved. Two accounts at the same bank with identical suffixes cannot yet be distinguished.
 - **Transfer detection is heuristic:** matching amount, direction, timing, and account suffix does not prove both accounts belong to the user.
 - **Classification is incomplete:** debits generally become expenses; salary heuristics identify some income. EMI, investment, refund, and credit-card-payment semantics need further work.
 - **Cross-source reconciliation is incomplete:** statement import followed by an SMS rescan can bring back overlapping transactions.
-- **Statement identity needs improvement:** rows without reference numbers can share a source identifier.
+- **Statement row identity:** identifiers use a hash of row fields plus an occurrence counter, preserving rows with missing/repeated references and exact duplicates on repeated import.
 - **Import robustness needs work:** malformed or oversized files need stricter handling and parser limits.
 - **Database upgrades need migrations:** the current configuration allows destructive migration.
-- **Validation is not automated yet:** the implementation branch contains unit tests, but there are no GitHub Actions checks configured. Prior PR notes report device testing; this is not a current CI result.
+- **Automated validation:** GitHub Actions runs unit tests (including Room database regression tests), Android lint, and the debug build. Prior PR notes report device testing; device behavior still needs separate validation.
 
 See the [roadmap](docs/ROADMAP.md) for the next engineering priorities. Treat app totals as experimental and verify them against bank records.
 
